@@ -1,52 +1,66 @@
 "use client";
 
 import { useState } from "react";
+import { motion } from "motion/react";
 
 export default function Navbar() {
     const [isOpen, setIsOpen] = useState(false);
 
     return (
-        <nav className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-[#869CFF]/20">
-            <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+        <motion.nav
+            initial={{ y: -80, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ duration: 0.6 }}
+            className="fixed left-0 right-0 top-0 z-50 border-b border-[#869CFF]/20 bg-white/95 backdrop-blur-md"
+        >
+            <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-6">
 
                 {/* Logo */}
-                <a
+                <motion.a
                     href="/"
-                    className="text-2xl font-bold text-[#869CFF]"
+                    whileHover={{ scale: 1.03 }}
+                    className="text-2xl font-black text-[#869CFF]"
                 >
                     Codo{" "}
                     <span className="text-[#E2A3FF]">
                         Learn
                     </span>
-                </a>
+                </motion.a>
 
                 {/* Desktop Menu */}
-                <div className="hidden md:flex items-center gap-8">
+                <div className="hidden items-center gap-8 md:flex">
 
                     <a
-                        href="#courses"
-                        className="text-[#5f6785] hover:text-[#869CFF] transition"
+                        href="#solutions"
+                        className="font-medium text-[#5F6785] transition hover:text-[#869CFF]"
                     >
-                        Courses
+                        Solutions
                     </a>
 
                     <a
                         href="#tracks"
-                        className="text-[#5f6785] hover:text-[#869CFF] transition"
+                        className="font-medium text-[#5F6785] transition hover:text-[#869CFF]"
                     >
                         Tracks
                     </a>
 
                     <a
+                        href="#interns"
+                        className="font-medium text-[#5F6785] transition hover:text-[#869CFF]"
+                    >
+                        Interns
+                    </a>
+
+                    <a
                         href="#about"
-                        className="text-[#5f6785] hover:text-[#869CFF] transition"
+                        className="font-medium text-[#5F6785] transition hover:text-[#869CFF]"
                     >
                         About Us
                     </a>
 
                     <a
                         href="#contact"
-                        className="text-[#5f6785] hover:text-[#869CFF] transition"
+                        className="font-medium text-[#5F6785] transition hover:text-[#869CFF]"
                     >
                         Contact
                     </a>
@@ -54,59 +68,69 @@ export default function Navbar() {
                 </div>
 
                 {/* Desktop Button */}
-                <a
-                    href="#courses"
-                    className="
-            hidden md:block
-            bg-[#869CFF]
-            hover:bg-[#E2A3FF]
-            text-white
-            px-6
-            py-3
-            rounded-full
-            transition
-          "
+                <motion.a
+                    whileHover={{
+                        scale: 1.05,
+                        y: -2,
+                    }}
+                    whileTap={{
+                        scale: 0.97,
+                    }}
+                    href="#solutions"
+                    className="hidden rounded-full bg-[#869CFF] px-6 py-3 font-semibold text-white shadow-lg shadow-[#869CFF]/20 transition hover:bg-[#7289F5] md:block"
                 >
-                    Explore Courses
-                </a>
+                    Explore Solutions
+                </motion.a>
 
-                {/* Mobile Button */}
+                {/* Mobile Menu Button */}
                 <button
                     onClick={() => setIsOpen(!isOpen)}
-                    className="md:hidden text-2xl text-[#869CFF]"
+                    className="text-2xl text-[#869CFF] md:hidden"
                     aria-label="Open menu"
                 >
-                    ☰
+                    {isOpen ? "✕" : "☰"}
                 </button>
 
             </div>
 
             {/* Mobile Menu */}
             {isOpen && (
-                <div className="md:hidden px-6 py-6 bg-white border-t border-[#869CFF]/20">
-
+                <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="border-t border-[#869CFF]/20 bg-white px-6 py-6 md:hidden"
+                >
                     <div className="flex flex-col gap-5">
 
                         <a
-                            href="#courses"
+                            href="#solutions"
                             onClick={() => setIsOpen(false)}
-                            className="text-[#5f6785] hover:text-[#869CFF]"
+                            className="font-medium text-[#5F6785] transition hover:text-[#869CFF]"
                         >
-                            Courses
+                            Solutions
                         </a>
 
                         <a
                             href="#tracks"
                             onClick={() => setIsOpen(false)}
-                            className="text-[#5f6785] hover:text-[#869CFF]"
+                            className="font-medium text-[#5F6785] transition hover:text-[#869CFF]"
                         >
                             Tracks
                         </a>
 
                         <a
+                            href="#interns"
+                            onClick={() => setIsOpen(false)}
+                            className="font-medium text-[#5F6785] transition hover:text-[#869CFF]"
+                        >
+                            Interns
+                        </a>
+
+                        <a
                             href="#about"
                             onClick={() => setIsOpen(false)}
-                            className="text-[#5f6785] hover:text-[#869CFF]"
+                            className="font-medium text-[#5F6785] transition hover:text-[#869CFF]"
                         >
                             About Us
                         </a>
@@ -114,32 +138,22 @@ export default function Navbar() {
                         <a
                             href="#contact"
                             onClick={() => setIsOpen(false)}
-                            className="text-[#5f6785] hover:text-[#869CFF]"
+                            className="font-medium text-[#5F6785] transition hover:text-[#869CFF]"
                         >
                             Contact
                         </a>
 
                         <a
-                            href="#courses"
+                            href="#solutions"
                             onClick={() => setIsOpen(false)}
-                            className="
-                w-fit
-                bg-[#869CFF]
-                hover:bg-[#E2A3FF]
-                text-white
-                px-6
-                py-3
-                rounded-full
-                transition
-              "
+                            className="w-fit rounded-full bg-[#869CFF] px-6 py-3 font-semibold text-white transition hover:bg-[#E2A3FF]"
                         >
-                            Explore Courses
+                            Explore Solutions
                         </a>
 
                     </div>
-
-                </div>
+                </motion.div>
             )}
-        </nav>
+        </motion.nav>
     );
 }

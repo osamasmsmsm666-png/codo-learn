@@ -1,9 +1,10 @@
 import Navbar from "../components/Navbar";
 import Hero from "../components/Hero";
-import Courses from "../components/Courses";
+import DigitalSolutions from "../components/DigitalSolutions";
 import Tracks from "../components/Tracks";
+import Interns from "../components/Interns";
 import WhyCodo from "../components/WhyCodo";
-import Instructors from "../components/Instructors";
+import Reviews from "../components/Reviews";
 import CTA from "../components/CTA";
 import Footer from "../components/Footer";
 
@@ -14,13 +15,15 @@ export default function Home() {
 
       <Hero />
 
-      <Courses />
+      <DigitalSolutions />
 
       <Tracks />
 
+      <Interns />
+
       <WhyCodo />
 
-      <Instructors />
+      <Reviews />
 
       <CTA />
 
