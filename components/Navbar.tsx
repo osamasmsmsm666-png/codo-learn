@@ -19,12 +19,14 @@ export default function Navbar() {
                 <motion.a
                     href="/"
                     whileHover={{ scale: 1.03 }}
-                    className="text-2xl font-black text-[#869CFF]"
+                    className="flex shrink-0 items-center"
+                    aria-label="Codo Learn Home"
                 >
-                    Codo{" "}
-                    <span className="text-[#E2A3FF]">
-                        Learn
-                    </span>
+                    <img
+                        src="/Logo.png"
+                        alt="Codo Learn — For Training & Digital Solutions"
+                        className="h-auto w-[150px] object-contain sm:w-[200px] lg:w-[200px]"
+                    />
                 </motion.a>
 
                 {/* Desktop Menu */}
