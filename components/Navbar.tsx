@@ -23,9 +23,9 @@ export default function Navbar() {
                     aria-label="Codo Learn Home"
                 >
                     <img
-                        src="/Logo.png"
+                        src="/logos.png"
                         alt="Codo Learn — For Training & Digital Solutions"
-                        className="h-auto w-[150px] object-contain sm:w-[200px] lg:w-[200px]"
+                        className="h-auto w-[150px] object-contain sm:w-[200px] lg:w-[220px]"
                     />
                 </motion.a>
 

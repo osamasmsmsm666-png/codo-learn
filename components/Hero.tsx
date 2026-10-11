@@ -1,6 +1,8 @@
 "use client";
 
 import { motion } from "motion/react";
+import Image from "next/image";
+import CodePlayground from "./CodePlayground";
 
 export default function Hero() {
     return (
@@ -156,134 +158,10 @@ export default function Hero() {
 
                 </div>
 
-                {/* Right Design */}
-                <div className="relative hidden lg:block">
 
-                    <div className="relative mx-auto h-[560px] w-[480px]">
 
-                        {/* Main Card */}
-                        <motion.div
-                            animate={{
-                                y: [0, -12, 0],
-                                rotate: [3, 4, 3],
-                            }}
-                            transition={{
-                                duration: 5,
-                                repeat: Infinity,
-                                ease: "easeInOut",
-                            }}
-                            className="absolute right-0 top-8 h-[430px] w-[370px] rounded-[40px] bg-gradient-to-br from-[#869CFF] to-[#E2A3FF] p-[2px] shadow-2xl"
-                        >
-                            <div className="flex h-full flex-col justify-between rounded-[38px] bg-white p-8">
-
-                                <div>
-                                    <p className="text-sm font-semibold tracking-widest text-[#869CFF]">
-                                        CODO LEARN
-                                    </p>
-
-                                    <h2 className="mt-10 text-4xl font-black leading-tight text-[#20243A]">
-                                        Turn
-                                        <br />
-                                        Knowledge
-                                        <br />
-                                        Into Skills.
-                                    </h2>
-
-                                    <p className="mt-6 max-w-[250px] text-sm leading-6 text-[#7B829D]">
-                                        Learn the skills that companies are looking for.
-                                    </p>
-                                </div>
-
-                                <div className="flex items-end justify-between">
-
-                                    <motion.div
-                                        animate={{
-                                            rotate: 360,
-                                        }}
-                                        transition={{
-                                            duration: 12,
-                                            repeat: Infinity,
-                                            ease: "linear",
-                                        }}
-                                        className="flex h-20 w-20 items-center justify-center rounded-full bg-[#869CFF]/10"
-                                    >
-                                        <div className="h-10 w-10 rounded-full bg-gradient-to-br from-[#869CFF] to-[#E2A3FF]" />
-                                    </motion.div>
-
-                                    <span className="text-6xl font-black text-[#E2A3FF]">
-                                        01
-                                    </span>
-
-                                </div>
-
-                            </div>
-                        </motion.div>
-
-                        {/* Floating Course Card */}
-                        <motion.div
-                            animate={{
-                                y: [0, 10, 0],
-                            }}
-                            transition={{
-                                duration: 4,
-                                repeat: Infinity,
-                                ease: "easeInOut",
-                            }}
-                            className="absolute bottom-12 left-0 w-64 rounded-3xl bg-white p-6 shadow-xl"
-                        >
-                            <div className="flex items-center justify-between">
-
-                                <p className="text-xs font-semibold uppercase tracking-wider text-[#8A91AA]">
-                                    Popular Track
-                                </p>
-
-                                <span className="rounded-full bg-[#E2A3FF]/20 px-3 py-1 text-xs font-bold text-[#869CFF]">
-                                    NEW
-                                </span>
-
-                            </div>
-
-                            <h3 className="mt-4 text-xl font-black text-[#20243A]">
-                                Full Stack Development
-                            </h3>
-
-                            <div className="mt-5 h-2 overflow-hidden rounded-full bg-[#EEF0F8]">
-                                <motion.div
-                                    initial={{ width: 0 }}
-                                    animate={{ width: "75%" }}
-                                    transition={{
-                                        duration: 1.5,
-                                        delay: 1,
-                                    }}
-                                    className="h-full rounded-full bg-gradient-to-r from-[#869CFF] to-[#E2A3FF]"
-                                />
-                            </div>
-
-                            <p className="mt-2 text-xs text-[#8A91AA]">
-                                75% students completed
-                            </p>
-                        </motion.div>
-
-                        {/* Small Circle */}
-                        <motion.div
-                            animate={{
-                                y: [0, -10, 0],
-                                rotate: [0, 10, 0],
-                            }}
-                            transition={{
-                                duration: 4,
-                                repeat: Infinity,
-                                ease: "easeInOut",
-                            }}
-                            className="absolute bottom-0 right-0 flex h-24 w-24 items-center justify-center rounded-full bg-[#20243A] shadow-xl"
-                        >
-                            <span className="text-2xl font-black text-white">
-                                ✦
-                            </span>
-                        </motion.div>
-
-                    </div>
-
+                <div className="relative z-10 w-full min-w-0 -translate-y-16 lg:w-[115%] lg:-ml-[10%]">
+                    <CodePlayground />
                 </div>
 
             </div>
