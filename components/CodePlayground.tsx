@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from "react";
-import { motion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 
 const starterCode = `<!DOCTYPE html>
 <html lang="en">
@@ -199,6 +199,7 @@ export default function CodePlayground() {
   return (
     <section className="w-full px-3 py-8 sm:px-5">
       <motion.div
+        layout
         initial={{ opacity: 0, y: 25 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
@@ -224,7 +225,11 @@ export default function CodePlayground() {
         </div>
 
         {/* Editor and Preview */}
-        <div className="grid md:grid-cols-2">
+        <div
+          className={`grid ${hasRun ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1"
+            }`}
+        >
+          {/* Code Editor */}
           <div className="min-w-0 border-b border-white/10 md:border-b-0 md:border-r">
             <div className="flex items-center justify-between px-4 py-3">
               <span className="text-xs font-bold uppercase tracking-widest text-[#E2A3FF]">
@@ -241,8 +246,7 @@ export default function CodePlayground() {
               spellCheck={false}
               value={code}
               onChange={(event) => setCode(event.target.value)}
-              className="block h-[320px] w-full resize-y bg-transparent px-4 py-3 font-mono text-xs leading-6 text-[#D9DDF5] outline-none focus:ring-1 focus:ring-inset focus:ring-[#869CFF] sm:h-[380px]"
-            />
+              className="block h-[300px] w-full resize-y bg-transparent px-4 py-3 font-mono text-xs leading-6 text-[#D9DDF5] outline-none focus:ring-1 focus:ring-inset focus:ring-[#869CFF] sm:h-[340px]" />
 
             <div className="flex flex-wrap gap-3 border-t border-white/10 p-4">
               <button
@@ -250,7 +254,7 @@ export default function CodePlayground() {
                 onClick={runCode}
                 className="rounded-xl bg-gradient-to-r from-[#869CFF] to-[#E2A3FF] px-5 py-3 text-sm font-black text-[#20243A] transition hover:-translate-y-0.5 hover:shadow-lg"
               >
-                ▶ Run Code
+                ▶ {hasRun ? "Run Again" : "Run Code"}
               </button>
 
               <button
@@ -263,51 +267,39 @@ export default function CodePlayground() {
             </div>
           </div>
 
-          {/* Preview */}
-          <div className="flex min-w-0 flex-col bg-[#F6F5FC]">
-            <div className="flex items-center justify-between border-b border-[#20243A]/10 px-4 py-3">
-              <span className="text-xs font-bold uppercase tracking-widest text-[#5F6785]">
-                Live Preview
-              </span>
+          {/* Preview appears only after Run */}
+          <AnimatePresence initial={false}>
+            {hasRun && (
+              <motion.div
+                key="preview"
+                initial={{ opacity: 0, x: 30 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 30 }}
+                transition={{ duration: 0.4 }}
+                className="flex min-w-0 flex-col bg-[#F6F5FC]"
+              >
+                <div className="flex items-center justify-between border-b border-[#20243A]/10 px-4 py-3">
+                  <span className="text-xs font-bold uppercase tracking-widest text-[#5F6785]">
+                    Live Preview
+                  </span>
 
-              <span className={`rounded-full px-3 py-1 text-xs font-semibold ${hasRun
-                ? "bg-[#DDF8EC] text-[#227B58]"
-                : "bg-white text-[#7B829D]"
-                }`}>
-                {hasRun ? "Running" : "Ready to run"}
-              </span>
-            </div>
-
-            <div className="flex min-h-[360px] flex-1 p-3 sm:min-h-[420px]">
-              {output ? (
-                <iframe
-                  key={output}
-                  title="Codo Learn logo animation"
-                  sandbox="allow-scripts"
-                  srcDoc={output}
-                  className="min-h-[340px] w-full flex-1 rounded-xl border border-[#869CFF]/20 bg-white sm:min-h-[400px]"
-                />
-              ) : (
-                <div className="flex flex-1 flex-col items-center justify-center rounded-xl border border-dashed border-[#869CFF]/30 px-5 py-10 text-center">
-                  <motion.div
-                    animate={{ y: [0, -8, 0] }}
-                    transition={{ duration: 2, repeat: Infinity }}
-                    className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-[#869CFF] to-[#E2A3FF] text-2xl font-black text-white"
-                  >
-                    C
-                  </motion.div>
-
-                  <h3 className="text-lg font-black text-[#20243A]">
-                    Bring Your Ideas to Life
-                  </h3>
-
-                  <p className="mt-2 max-w-xs text-sm leading-6 text-[#7B829D]">
-                    Press Run Code to see the Codo Learn logo animation.
-                  </p>
+                  <span className="rounded-full bg-[#DDF8EC] px-3 py-1 text-xs font-semibold text-[#227B58]">
+                    Running
+                  </span>
                 </div>
-              )}
-            </div>
-          </div>
+
+                <div className="flex min-h-[360px] flex-1 p-3 sm:min-h-[420px]">
+                  <iframe
+                    key={output}
+                    title="Codo Learn animation preview"
+                    sandbox="allow-scripts"
+                    srcDoc={output}
+                    className="min-h-[340px] w-full flex-1 rounded-xl border border-[#869CFF]/20 bg-white sm:min-h-[400px]"
+                  />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* Footer */}
