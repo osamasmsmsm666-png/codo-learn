@@ -34,7 +34,7 @@ export default function Navbar() {
                     <img
                         src="/Logos.png"
                         alt="Codo Learn — For Training & Digital Solutions"
-                        className="h-auto w-[190px] object-contain sm:w-[220px] lg:w-[250px]"
+                        className="h-auto w-[190px] object-contain sm:w-[220px] lg:w-[200px]"
                     />
                 </motion.a>
 
