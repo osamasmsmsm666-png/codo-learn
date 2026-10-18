@@ -1669,14 +1669,13 @@ export default function InstructorDashboard() {
 
                             <div className="space-y-4">
                                 {assignments.map((assignment) => (
-                                    <div
+                                    <Link
                                         key={assignment.id}
-                                        className="flex flex-col justify-between gap-4 rounded-2xl border border-[#ECECF5] bg-white p-5 sm:flex-row sm:items-center"
+                                        href={`/instructor-dashboard/assignments/${assignment.id}?title=${encodeURIComponent(assignment.title)}`}
+                                        className="flex flex-col justify-between gap-4 rounded-2xl border border-[#ECECF5] bg-white p-5 transition hover:border-[#869CFF] hover:shadow-md sm:flex-row sm:items-center"
                                     >
                                         <div>
-                                            <h3 className="font-bold">
-                                                {assignment.title}
-                                            </h3>
+                                            <h3 className="font-bold">{assignment.title}</h3>
                                             <p className="mt-2 text-sm text-gray-500">
                                                 {assignment.course}
                                             </p>
@@ -1690,16 +1689,11 @@ export default function InstructorDashboard() {
                                                 <p className="text-xl font-extrabold">
                                                     {assignment.submissions}
                                                 </p>
-                                                <p className="text-xs text-gray-400">
-                                                    Submissions
-                                                </p>
+                                                <p className="text-xs text-gray-400">Submissions</p>
                                             </div>
-
-                                            <StatusBadge
-                                                status={assignment.status}
-                                            />
+                                            <StatusBadge status={assignment.status} />
                                         </div>
-                                    </div>
+                                    </Link>
                                 ))}
                             </div>
 
