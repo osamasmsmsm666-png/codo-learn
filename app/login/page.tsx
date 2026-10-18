@@ -5,8 +5,7 @@ import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { motion } from "motion/react";
 
-type AccountRole = "student" | "instructor" | "admin" | "employee";
-
+type AccountRole = "student" | "instructor" | "employee" | "admin";
 export default function LoginPage() {
     const [role, setRole] = useState<AccountRole>("student");
     const [email, setEmail] = useState("");
@@ -174,12 +173,12 @@ export default function LoginPage() {
                                 Account type
                             </label>
 
-                            <div className="grid grid-cols-2 gap-2 rounded-2xl bg-[#F1F2FA] p-1.5">
+                            <div className="grid grid-cols-3 gap-2 rounded-2xl bg-[#F1F2FA] p-1.5">
                                 {(
                                     [
                                         { value: "student", label: "Student" },
                                         { value: "instructor", label: "Instructor" },
-                                        { value: "admin", label: "Admin" },
+
                                         { value: "employee", label: "Employee" },
                                     ] as const
                                 ).map((item) => (
@@ -351,6 +350,24 @@ export default function LoginPage() {
                             </Link>
                         </p>
 
+                        <div className="flex flex-col items-center gap-4 w-full">
+
+
+                            {/* الرابط الجديد الخاص بالأدمن */}
+                            <div className="pt-3 text-xs text-gray-500 border-t border-gray-100 w-full text-center">
+                                Are you an administrator?{' '}
+                                <Link
+                                    href="/admin/login"
+                                    className="font-medium text-[#7587E8] hover:text-[#596CCB] transition-colors underline offset-2"
+                                >
+                                    Admin Login
+                                </Link>
+                            </div>
+
+                        </div>
+                        ;
+
+
                         <p className="mt-8 text-center text-xs leading-5 text-[#9A9FB3]">
                             By continuing, you agree to the Codo Learn terms and privacy
                             policy.
@@ -358,6 +375,6 @@ export default function LoginPage() {
                     </motion.div>
                 </section>
             </div>
-        </main>
+        </main >
     );
 }

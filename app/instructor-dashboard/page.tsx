@@ -1,10 +1,16 @@
 
 "use client";
 
-import { useState, type FormEvent, type ReactNode } from "react";
+import {
+    useEffect,
+    useState,
+    type FormEvent,
+    type ReactNode,
+} from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion } from "motion/react";
+import { useRouter } from "next/navigation";
 
 type Section =
     | "overview"
@@ -25,6 +31,42 @@ type Course = {
     status: "Published" | "Draft";
     color: string;
 };
+
+type InstructorNotification = {
+    id: number;
+    title: string;
+    description: string;
+    type: "student" | "assignment" | "review" | "course" | "lesson";
+    createdAt: string;
+    read: boolean;
+};
+
+const defaultNotifications: InstructorNotification[] = [
+    {
+        id: 1001,
+        title: "New student enrolled",
+        description: "Omar Hassan enrolled in Frontend Development.",
+        type: "student",
+        createdAt: "2026-10-18T10:30:00",
+        read: false,
+    },
+    {
+        id: 1002,
+        title: "New assignment submission",
+        description: "A student submitted JavaScript Array Methods.",
+        type: "assignment",
+        createdAt: "2026-10-18T09:15:00",
+        read: false,
+    },
+    {
+        id: 1003,
+        title: "New course review",
+        description: "Sara Ahmed left a 5-star review.",
+        type: "review",
+        createdAt: "2026-10-17T16:00:00",
+        read: true,
+    },
+];
 
 const initialCourses: Course[] = [
     {
@@ -176,32 +218,85 @@ const navItems: {
         { id: "profile", label: "My Profile", icon: "⚙" },
     ];
 
+const NOTIFICATIONS_STORAGE_KEY = "codo-instructor-notifications";
+
 export default function InstructorDashboard() {
     const [activeSection, setActiveSection] =
         useState<Section>("overview");
+    const [phone, setPhone] = useState("");
+    const [saveMessage, setSaveMessage] = useState("");
+    const [passwordMessage, setPasswordMessage] = useState("");
 
+    const [currentPassword, setCurrentPassword] = useState("");
+    const [newPassword, setNewPassword] = useState("");
+
+    function saveProfile(event: FormEvent<HTMLFormElement>) {
+        event.preventDefault();
+        setMessage("");
+        setSaveMessage("Profile changes saved in this demo.");
+    }
+
+    function changePassword(event: FormEvent<HTMLFormElement>) {
+        event.preventDefault();
+
+        if (newPassword.length < 8) {
+            setPasswordMessage("Password must be at least 8 characters.");
+            return;
+        }
+
+        if (currentPassword === newPassword) {
+            setPasswordMessage(
+                "Your new password must be different from your current password."
+            );
+            return;
+        }
+
+        setPasswordMessage(
+            "Demo only: connect backend authentication to change your real password."
+        );
+
+        setCurrentPassword("");
+        setNewPassword("");
+    }
     const [courses, setCourses] = useState(initialCourses);
     const [students] = useState(initialStudents);
     const [assignments, setAssignments] = useState(initialAssignments);
     const [sessions] = useState(initialSessions);
-
+    const [profilePhoto, setProfilePhoto] = useState("");
     const [selectedCourseId, setSelectedCourseId] = useState(1);
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [showCourseForm, setShowCourseForm] = useState(false);
     const [showAssignmentForm, setShowAssignmentForm] = useState(false);
 
     const [courseTitle, setCourseTitle] = useState("");
-    const [courseCategory, setCourseCategory] = useState("Web Development");
+    const [courseCategory, setCourseCategory] =
+        useState("Web Development");
     const [courseStatus, setCourseStatus] =
         useState<"Published" | "Draft">("Draft");
 
     const [lessonTitle, setLessonTitle] = useState("");
+
     const [courseLessons, setCourseLessons] = useState<
         { id: number; courseId: number; title: string; type: string }[]
     >([
-        { id: 1, courseId: 1, title: "Introduction to HTML", type: "Video" },
-        { id: 2, courseId: 1, title: "CSS Fundamentals", type: "Video" },
-        { id: 3, courseId: 1, title: "Responsive Design", type: "Material" },
+        {
+            id: 1,
+            courseId: 1,
+            title: "Introduction to HTML",
+            type: "Video",
+        },
+        {
+            id: 2,
+            courseId: 1,
+            title: "CSS Fundamentals",
+            type: "Video",
+        },
+        {
+            id: 3,
+            courseId: 1,
+            title: "Responsive Design",
+            type: "Material",
+        },
         {
             id: 4,
             courseId: 2,
@@ -212,15 +307,180 @@ export default function InstructorDashboard() {
 
     const [assignmentTitle, setAssignmentTitle] = useState("");
     const [assignmentCourseId, setAssignmentCourseId] = useState("1");
-    const [assignmentDueDate, setAssignmentDueDate] = useState("2026-10-25");
+    const [assignmentDueDate, setAssignmentDueDate] =
+        useState("2026-10-25");
 
-    const [instructorName, setInstructorName] = useState("Instructor Name");
+    const [instructorName, setInstructorName] =
+        useState("Instructor Name");
     const [email, setEmail] = useState("instructor@example.com");
     const [bio, setBio] = useState(
         "Instructor at Codo Learn, passionate about teaching and building projects."
     );
+    const [profileLoaded, setProfileLoaded] = useState(false);
 
+    useEffect(() => {
+        try {
+            const saved = localStorage.getItem("codo-instructor-profile");
+
+            if (saved) {
+                const profile = JSON.parse(saved);
+
+                if (typeof profile.instructorName === "string") {
+                    setInstructorName(profile.instructorName);
+                }
+
+                if (typeof profile.email === "string") {
+                    setEmail(profile.email);
+                }
+
+                if (typeof profile.phone === "string") {
+                    setPhone(profile.phone);
+                }
+
+                if (typeof profile.profilePhoto === "string") {
+                    setProfilePhoto(profile.profilePhoto);
+                }
+            }
+        } catch {
+            console.error("Could not load instructor profile.");
+        } finally {
+            setProfileLoaded(true);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!profileLoaded) return;
+
+        try {
+            localStorage.setItem(
+                "codo-instructor-profile",
+                JSON.stringify({
+                    instructorName,
+                    email,
+                    phone,
+                    profilePhoto,
+                })
+            );
+        } catch {
+            setSaveMessage(
+                "Could not save the photo. Try a smaller image."
+            );
+        }
+    }, [instructorName, email, phone, profilePhoto, profileLoaded]);
     const [message, setMessage] = useState("");
+
+    // Notifications
+    const [notifications, setNotifications] =
+        useState<InstructorNotification[]>(defaultNotifications);
+
+    const [notificationsLoaded, setNotificationsLoaded] = useState(false);
+    const [notificationsOpen, setNotificationsOpen] = useState(false);
+
+    const [notificationFilter, setNotificationFilter] = useState<
+        "all" | "unread"
+    >("all");
+
+    // Load notifications from localStorage after mounting.
+    useEffect(() => {
+        try {
+            const saved = localStorage.getItem(
+                NOTIFICATIONS_STORAGE_KEY
+            );
+
+            if (saved) {
+                const parsed: unknown = JSON.parse(saved);
+
+                if (
+                    Array.isArray(parsed) &&
+                    parsed.every(
+                        (item) =>
+                            item &&
+                            typeof item.id === "number" &&
+                            typeof item.title === "string" &&
+                            typeof item.description === "string" &&
+                            typeof item.createdAt === "string" &&
+                            typeof item.read === "boolean" &&
+                            [
+                                "student",
+                                "assignment",
+                                "review",
+                                "course",
+                                "lesson",
+                            ].includes(item.type)
+                    )
+                ) {
+                    setNotifications(parsed as InstructorNotification[]);
+                }
+            }
+        } catch {
+            // Keep the default notifications if saved data is invalid.
+        } finally {
+            setNotificationsLoaded(true);
+        }
+    }, []);
+
+    // Save only after the initial loading attempt finishes.
+    useEffect(() => {
+        if (!notificationsLoaded) return;
+
+        try {
+            localStorage.setItem(
+                NOTIFICATIONS_STORAGE_KEY,
+                JSON.stringify(notifications)
+            );
+        } catch {
+            // The dashboard can still work if browser storage is unavailable.
+        }
+    }, [notifications, notificationsLoaded]);
+
+    const unreadCount = notifications.filter(
+        (notification) => !notification.read
+    ).length;
+
+    const visibleNotifications = notifications.filter(
+        (notification) =>
+            notificationFilter === "all" || !notification.read
+    );
+
+    function addNotification(
+        notification: Omit<
+            InstructorNotification,
+            "id" | "createdAt" | "read"
+        >
+    ) {
+        setNotifications((previous) => [
+            {
+                ...notification,
+                id: Date.now(),
+                createdAt: new Date().toISOString(),
+                read: false,
+            },
+            ...previous,
+        ]);
+    }
+
+    function markNotificationRead(id: number) {
+        setNotifications((previous) =>
+            previous.map((notification) =>
+                notification.id === id
+                    ? { ...notification, read: true }
+                    : notification
+            )
+        );
+    }
+
+    function markAllNotificationsRead() {
+        setNotifications((previous) =>
+            previous.map((notification) => ({
+                ...notification,
+                read: true,
+            }))
+        );
+    }
+
+    function clearNotifications() {
+        setNotifications([]);
+    }
 
     const selectedCourse =
         courses.find((course) => course.id === selectedCourseId) ??
@@ -277,6 +537,12 @@ export default function InstructorDashboard() {
         setCourseStatus("Draft");
         setShowCourseForm(false);
         setMessage("Course added to this demo dashboard.");
+
+        addNotification({
+            title: "New course created",
+            description: `${newCourse.title} was added to your courses.`,
+            type: "course",
+        });
     }
 
     function addLesson(event: FormEvent<HTMLFormElement>) {
@@ -284,12 +550,14 @@ export default function InstructorDashboard() {
 
         if (!lessonTitle.trim()) return;
 
+        const newLessonTitle = lessonTitle.trim();
+
         setCourseLessons((previous) => [
             ...previous,
             {
                 id: Date.now(),
                 courseId: selectedCourseId,
-                title: lessonTitle.trim(),
+                title: newLessonTitle,
                 type: "Lesson",
             },
         ]);
@@ -304,12 +572,20 @@ export default function InstructorDashboard() {
 
         setLessonTitle("");
         setMessage("Lesson added to the local demo.");
+
+        addNotification({
+            title: "New lesson added",
+            description: `A new lesson "${newLessonTitle}" was added to ${selectedCourse.title}.`,
+            type: "lesson",
+        });
     }
 
     function addAssignment(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
 
-        if (!assignmentTitle.trim()) return;
+        const newAssignmentTitle = assignmentTitle.trim();
+
+        if (!newAssignmentTitle) return;
 
         const course = courses.find(
             (item) => item.id === Number(assignmentCourseId)
@@ -321,7 +597,7 @@ export default function InstructorDashboard() {
             ...previous,
             {
                 id: Date.now(),
-                title: assignmentTitle.trim(),
+                title: newAssignmentTitle,
                 course: course.title,
                 dueDate: assignmentDueDate,
                 submissions: 0,
@@ -332,16 +608,58 @@ export default function InstructorDashboard() {
         setAssignmentTitle("");
         setShowAssignmentForm(false);
         setMessage("Assignment added to this demo dashboard.");
-    }
 
-    function saveProfile(event: FormEvent<HTMLFormElement>) {
-        event.preventDefault();
-        setMessage("Profile saved in this demo. Backend integration is still needed.");
+        addNotification({
+            title: "New assignment created",
+            description: `${newAssignmentTitle} was created for ${course.title}.`,
+            type: "assignment",
+        });
     }
 
     const currentLessons = courseLessons.filter(
         (lesson) => lesson.courseId === selectedCourseId
     );
+    const [lessonsLoaded, setLessonsLoaded] = useState(false);
+
+    useEffect(() => {
+        try {
+            const saved = localStorage.getItem("codo-instructor-lessons");
+
+            if (saved) {
+                const parsed: unknown = JSON.parse(saved);
+
+                if (
+                    Array.isArray(parsed) &&
+                    parsed.every(
+                        (lesson) =>
+                            typeof lesson.id === "number" &&
+                            typeof lesson.courseId === "number" &&
+                            typeof lesson.title === "string" &&
+                            typeof lesson.type === "string"
+                    )
+                ) {
+                    setCourseLessons(parsed);
+                }
+            }
+        } catch {
+            console.error("Could not load saved lessons.");
+        } finally {
+            setLessonsLoaded(true);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!lessonsLoaded) return;
+
+        try {
+            localStorage.setItem(
+                "codo-instructor-lessons",
+                JSON.stringify(courseLessons)
+            );
+        } catch {
+            console.error("Could not save lessons.");
+        }
+    }, [courseLessons, lessonsLoaded]);
 
     return (
         <div className="min-h-screen bg-[#F8F8FC] text-[#20243A]">
@@ -369,6 +687,7 @@ export default function InstructorDashboard() {
                             className="h-auto w-[145px] object-contain"
                         />
                     </Link>
+
                     <button
                         onClick={() => setSidebarOpen(false)}
                         className="rounded-lg p-2 text-xl lg:hidden"
@@ -401,8 +720,6 @@ export default function InstructorDashboard() {
                         </button>
                     ))}
                 </nav>
-
-
             </aside>
 
             {/* Main */}
@@ -416,28 +733,304 @@ export default function InstructorDashboard() {
                         >
                             ☰
                         </button>
+
                         <div>
-                            <p className="text-xs text-gray-400">Instructor Portal</p>
+                            <p className="text-xs text-gray-400">
+                                Instructor Portal
+                            </p>
                             <h1 className="text-lg font-bold sm:text-xl">
                                 {pageTitles[activeSection]}
                             </h1>
                         </div>
                     </div>
 
-                    <button
-                        onClick={() => openSection("profile")}
-                        className="flex items-center gap-3 rounded-xl p-1.5 hover:bg-gray-50"
-                    >
-                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#869CFF] to-[#E2A3FF] font-bold text-white">
-                            {instructorName.charAt(0).toUpperCase()}
+                    <div className="flex items-center gap-2 sm:gap-4">
+                        {/* Notifications */}
+                        <div className="relative">
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    setNotificationsOpen((open) => !open)
+                                }
+                                aria-label={`Notifications, ${unreadCount} unread`}
+                                aria-expanded={notificationsOpen}
+                                className="relative flex h-11 w-11 items-center justify-center rounded-xl border border-[#ECECF5] bg-white text-[#586FD6] transition hover:bg-[#869CFF]/10"
+                            >
+                                <svg
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="1.8"
+                                    className="h-5 w-5"
+                                    aria-hidden="true"
+                                >
+                                    <path
+                                        d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                    />
+                                    <path
+                                        d="M10 21h4"
+                                        strokeLinecap="round"
+                                    />
+                                </svg>
+
+                                {unreadCount > 0 && (
+                                    <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#E2A3FF] px-1 text-[10px] font-extrabold text-[#20243A] ring-2 ring-white">
+                                        {unreadCount > 99
+                                            ? "99+"
+                                            : unreadCount}
+                                    </span>
+                                )}
+                            </button>
+
+                            {notificationsOpen && (
+                                <>
+                                    <button
+                                        type="button"
+                                        aria-label="Close notifications"
+                                        onClick={() =>
+                                            setNotificationsOpen(false)
+                                        }
+                                        className="fixed inset-0 z-40 cursor-default"
+                                    />
+
+                                    <div className="absolute right-0 top-14 z-50 w-[min(360px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-[#ECECF5] bg-white shadow-xl shadow-[#20243A]/10">
+                                        <div className="border-b border-[#ECECF5] p-4">
+                                            <div className="flex items-center justify-between gap-3">
+                                                <div>
+                                                    <h3 className="font-bold text-[#20243A]">
+                                                        Notifications
+                                                    </h3>
+                                                    <p className="mt-1 text-xs text-gray-500">
+                                                        {unreadCount} unread
+                                                        notifications
+                                                    </p>
+                                                </div>
+
+                                                <button
+                                                    type="button"
+                                                    onClick={
+                                                        markAllNotificationsRead
+                                                    }
+                                                    disabled={unreadCount === 0}
+                                                    className="text-xs font-semibold text-[#586FD6] hover:underline disabled:cursor-not-allowed disabled:opacity-40"
+                                                >
+                                                    Mark all read
+                                                </button>
+                                            </div>
+
+                                            <div className="mt-4 flex gap-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        setNotificationFilter(
+                                                            "all"
+                                                        )
+                                                    }
+                                                    className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${notificationFilter ===
+                                                        "all"
+                                                        ? "bg-[#869CFF]/20 text-[#455BC1]"
+                                                        : "bg-gray-50 text-gray-500"
+                                                        }`}
+                                                >
+                                                    All
+                                                </button>
+
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        setNotificationFilter(
+                                                            "unread"
+                                                        )
+                                                    }
+                                                    className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${notificationFilter ===
+                                                        "unread"
+                                                        ? "bg-[#869CFF]/20 text-[#455BC1]"
+                                                        : "bg-gray-50 text-gray-500"
+                                                        }`}
+                                                >
+                                                    Unread
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div className="max-h-[380px] overflow-y-auto">
+                                            {visibleNotifications.length ===
+                                                0 ? (
+                                                <div className="px-5 py-10 text-center">
+                                                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#869CFF]/10 text-2xl">
+                                                        ✓
+                                                    </div>
+
+                                                    <p className="mt-3 text-sm font-semibold text-[#20243A]">
+                                                        You&apos;re all caught
+                                                        up!
+                                                    </p>
+
+                                                    <p className="mt-1 text-xs text-gray-500">
+                                                        No notifications to show.
+                                                    </p>
+                                                </div>
+                                            ) : (
+                                                visibleNotifications.map(
+                                                    (notification) => (
+                                                        <button
+                                                            key={notification.id}
+                                                            type="button"
+                                                            onClick={() =>
+                                                                markNotificationRead(
+                                                                    notification.id
+                                                                )
+                                                            }
+                                                            className={`flex w-full items-start gap-3 border-b border-gray-100 p-4 text-left transition hover:bg-[#F8F8FC] ${notification.read
+                                                                ? "bg-white"
+                                                                : "bg-[#869CFF]/[0.07]"
+                                                                }`}
+                                                        >
+                                                            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#869CFF]/25 to-[#E2A3FF]/35 text-sm font-bold text-[#455BC1]">
+                                                                {notification.type ===
+                                                                    "student" &&
+                                                                    "♙"}
+                                                                {notification.type ===
+                                                                    "assignment" &&
+                                                                    "✓"}
+                                                                {notification.type ===
+                                                                    "review" &&
+                                                                    "★"}
+                                                                {notification.type ===
+                                                                    "course" &&
+                                                                    "▤"}
+                                                                {notification.type ===
+                                                                    "lesson" &&
+                                                                    "▷"}
+                                                            </span>
+
+                                                            <span className="min-w-0 flex-1">
+                                                                <span className="flex items-start justify-between gap-2">
+                                                                    <span className="text-sm font-semibold text-[#20243A]">
+                                                                        {
+                                                                            notification.title
+                                                                        }
+                                                                    </span>
+
+                                                                    {!notification.read && (
+                                                                        <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[#869CFF]" />
+                                                                    )}
+                                                                </span>
+
+                                                                <span className="mt-1 block text-xs leading-5 text-gray-500">
+                                                                    {
+                                                                        notification.description
+                                                                    }
+                                                                </span>
+
+                                                                <span className="mt-2 block text-[11px] text-gray-400">
+                                                                    {new Date(
+                                                                        notification.createdAt
+                                                                    ).toLocaleString(
+                                                                        "en-GB",
+                                                                        {
+                                                                            day: "numeric",
+                                                                            month: "short",
+                                                                            hour: "2-digit",
+                                                                            minute: "2-digit",
+                                                                        }
+                                                                    )}
+                                                                </span>
+                                                            </span>
+                                                        </button>
+                                                    )
+                                                )
+                                            )}
+                                        </div>
+
+                                        <div className="flex items-center justify-between border-t border-[#ECECF5] p-3">
+                                            <span className="text-[11px] text-gray-400">
+                                                Codo Learn · Demo notifications
+                                            </span>
+
+                                            <button
+                                                type="button"
+                                                onClick={clearNotifications}
+                                                disabled={
+                                                    notifications.length === 0
+                                                }
+                                                className="text-xs font-semibold text-gray-500 hover:text-red-500 disabled:opacity-40"
+                                            >
+                                                Clear all
+                                            </button>
+                                        </div>
+                                    </div>
+                                </>
+                            )}
                         </div>
-                        <div className="hidden text-left sm:block">
-                            <p className="max-w-36 truncate text-sm font-semibold">
-                                {instructorName}
-                            </p>
-                            <p className="text-xs text-gray-400">Instructor</p>
-                        </div>
-                    </button>
+
+                        {/* Instructor Profile */}
+                        <button
+                            onClick={() => openSection("profile")}
+                            className="flex items-center gap-3 rounded-xl p-1.5 hover:bg-gray-50"
+                        ><div className="relative h-10 w-10 shrink-0">
+                                {profilePhoto ? (
+                                    <img
+                                        src={profilePhoto}
+                                        alt="Instructor profile"
+                                        className="h-10 w-10 rounded-full object-cover"
+                                    />
+                                ) : (
+                                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#869CFF] to-[#E2A3FF] text-lg font-bold text-white">
+                                        {instructorName.charAt(0).toUpperCase()}
+                                    </div>
+                                )}
+
+
+
+                                <input
+                                    id="instructor-photo"
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={(e) => {
+                                        const file = e.target.files?.[0];
+
+                                        if (!file) return;
+
+                                        if (!file.type.startsWith("image/")) {
+                                            alert("Please select an image file.");
+                                            e.target.value = "";
+                                            return;
+                                        }
+
+                                        if (file.size > 2 * 1024 * 1024) {
+                                            alert("Please choose an image smaller than 2 MB.");
+                                            e.target.value = "";
+                                            return;
+                                        }
+
+                                        const reader = new FileReader();
+
+                                        reader.onload = () => {
+                                            if (typeof reader.result === "string") {
+                                                setProfilePhoto(reader.result);
+                                                setSaveMessage("");
+                                            }
+                                        };
+
+                                        reader.readAsDataURL(file);
+                                    }}
+                                />
+                            </div>
+
+                            <div className="hidden text-left sm:block">
+                                <p className="max-w-36 truncate text-sm font-semibold">
+                                    {instructorName}
+                                </p>
+                                <p className="text-xs text-gray-400">
+                                    Instructor
+                                </p>
+                            </div>
+                        </button>
+                    </div>
                 </header>
 
                 <div className="mx-auto max-w-[1500px] p-4 sm:p-8">
@@ -453,15 +1046,18 @@ export default function InstructorDashboard() {
                                     <p className="text-sm font-semibold text-[#586FD6]">
                                         INSTRUCTOR WORKSPACE
                                     </p>
+
                                     <h2 className="mt-3 text-3xl font-extrabold leading-tight sm:text-4xl">
                                         Welcome back, {instructorName}!
                                     </h2>
-                                    <p className="mt-3 max-w-xl text-sm leading-6 text-gray-600 sm:text-base">
-                                        Manage your courses, support your students, and
-                                        track your teaching activity from one place.
-                                    </p>
 
+                                    <p className="mt-3 max-w-xl text-sm leading-6 text-gray-600 sm:text-base">
+                                        Manage your courses, support your
+                                        students, and track your teaching
+                                        activity from one place.
+                                    </p>
                                 </div>
+
                                 <div className="pointer-events-none absolute -right-8 -top-12 h-48 w-48 rounded-full bg-[#869CFF]/25 blur-2xl" />
                                 <div className="pointer-events-none absolute -bottom-16 right-28 h-40 w-40 rounded-full bg-[#E2A3FF]/40 blur-2xl" />
                             </section>
@@ -492,11 +1088,14 @@ export default function InstructorDashboard() {
                             <section>
                                 <div className="mb-4 flex items-center justify-between gap-3">
                                     <div>
-                                        <h3 className="text-xl font-bold">Your Courses</h3>
+                                        <h3 className="text-xl font-bold">
+                                            Your Courses
+                                        </h3>
                                         <p className="mt-1 text-sm text-gray-500">
                                             A quick overview of your courses.
                                         </p>
                                     </div>
+
                                     <button
                                         onClick={() => openSection("courses")}
                                         className="text-sm font-bold text-[#586FD6]"
@@ -522,14 +1121,20 @@ export default function InstructorDashboard() {
                             <section className="grid gap-5 xl:grid-cols-2">
                                 <div className="rounded-2xl border border-[#ECECF5] bg-white p-6">
                                     <div className="flex items-center justify-between">
-                                        <h3 className="font-bold">Upcoming Sessions</h3>
+                                        <h3 className="font-bold">
+                                            Upcoming Sessions
+                                        </h3>
+
                                         <button
-                                            onClick={() => openSection("schedule")}
+                                            onClick={() =>
+                                                openSection("schedule")
+                                            }
                                             className="text-sm font-bold text-[#586FD6]"
                                         >
                                             View schedule →
                                         </button>
                                     </div>
+
                                     <div className="mt-5 space-y-4">
                                         {sessions.slice(0, 3).map((session) => (
                                             <div
@@ -539,6 +1144,7 @@ export default function InstructorDashboard() {
                                                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#869CFF]/15 text-lg">
                                                     ▦
                                                 </div>
+
                                                 <div className="min-w-0 flex-1">
                                                     <p className="text-sm font-semibold">
                                                         {session.title}
@@ -547,7 +1153,8 @@ export default function InstructorDashboard() {
                                                         {session.course}
                                                     </p>
                                                     <p className="mt-1 text-xs text-gray-400">
-                                                        {session.date} · {session.time}
+                                                        {session.date} ·{" "}
+                                                        {session.time}
                                                     </p>
                                                 </div>
                                             </div>
@@ -557,37 +1164,47 @@ export default function InstructorDashboard() {
 
                                 <div className="rounded-2xl border border-[#ECECF5] bg-white p-6">
                                     <div className="flex items-center justify-between">
-                                        <h3 className="font-bold">Recent Assignments</h3>
+                                        <h3 className="font-bold">
+                                            Recent Assignments
+                                        </h3>
+
                                         <button
-                                            onClick={() => openSection("assignments")}
+                                            onClick={() =>
+                                                openSection("assignments")
+                                            }
                                             className="text-sm font-bold text-[#586FD6]"
                                         >
                                             View all →
                                         </button>
                                     </div>
+
                                     <div className="mt-5 space-y-4">
-                                        {assignments.slice(0, 3).map((assignment) => (
-                                            <div
-                                                key={assignment.id}
-                                                className="flex items-start gap-3 rounded-xl bg-[#F8F8FC] p-3"
-                                            >
-                                                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#E2A3FF]/30">
-                                                    ✓
-                                                </span>
-                                                <div className="min-w-0 flex-1">
-                                                    <p className="text-sm font-semibold">
-                                                        {assignment.title}
-                                                    </p>
-                                                    <p className="mt-1 text-xs text-gray-500">
-                                                        {assignment.course}
-                                                    </p>
-                                                    <p className="mt-1 text-xs text-gray-400">
-                                                        {assignment.submissions} submissions · Due{" "}
-                                                        {assignment.dueDate}
-                                                    </p>
+                                        {assignments.slice(0, 3).map(
+                                            (assignment) => (
+                                                <div
+                                                    key={assignment.id}
+                                                    className="flex items-start gap-3 rounded-xl bg-[#F8F8FC] p-3"
+                                                >
+                                                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#E2A3FF]/30">
+                                                        ✓
+                                                    </span>
+
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="text-sm font-semibold">
+                                                            {assignment.title}
+                                                        </p>
+                                                        <p className="mt-1 text-xs text-gray-500">
+                                                            {assignment.course}
+                                                        </p>
+                                                        <p className="mt-1 text-xs text-gray-400">
+                                                            {assignment.submissions}{" "}
+                                                            submissions · Due{" "}
+                                                            {assignment.dueDate}
+                                                        </p>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        ))}
+                                            )
+                                        )}
                                     </div>
                                 </div>
                             </section>
@@ -599,11 +1216,105 @@ export default function InstructorDashboard() {
                         <SectionPanel
                             title="My Courses"
                             description="Create and manage the courses you teach."
-
                         >
-                            {showCourseForm}
+                            {showCourseForm && (
+                                <form
+                                    onSubmit={addCourse}
+                                    className="rounded-2xl border border-[#ECECF5] bg-white p-6"
+                                >
+                                    <h3 className="mb-4 text-lg font-bold">
+                                        Create a Course
+                                    </h3>
 
+                                    <div className="grid gap-4 sm:grid-cols-2">
+                                        <Field label="Course Title">
+                                            <input
+                                                required
+                                                value={courseTitle}
+                                                onChange={(event) =>
+                                                    setCourseTitle(
+                                                        event.target.value
+                                                    )
+                                                }
+                                                placeholder="Enter course title"
+                                                className={inputClass}
+                                            />
+                                        </Field>
 
+                                        <Field label="Category">
+                                            <select
+                                                value={courseCategory}
+                                                onChange={(event) =>
+                                                    setCourseCategory(
+                                                        event.target.value
+                                                    )
+                                                }
+                                                className={inputClass}
+                                            >
+                                                <option>
+                                                    Web Development
+                                                </option>
+                                                <option>Programming</option>
+                                                <option>UI/UX Design</option>
+                                                <option>Data Science</option>
+                                            </select>
+                                        </Field>
+
+                                        <Field label="Status">
+                                            <select
+                                                value={courseStatus}
+                                                onChange={(event) =>
+                                                    setCourseStatus(
+                                                        event.target.value as
+                                                        | "Published"
+                                                        | "Draft"
+                                                    )
+                                                }
+                                                className={inputClass}
+                                            >
+                                                <option value="Draft">
+                                                    Draft
+                                                </option>
+                                                <option value="Published">
+                                                    Published
+                                                </option>
+                                            </select>
+                                        </Field>
+                                    </div>
+
+                                    <div className="mt-4 flex gap-3">
+                                        <button
+                                            type="submit"
+                                            className="rounded-xl bg-[#586FD6] px-5 py-3 text-sm font-bold text-white"
+                                        >
+                                            Save Course
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                setShowCourseForm(false)
+                                            }
+                                            className="rounded-xl border border-gray-200 px-5 py-3 text-sm font-semibold"
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </form>
+                            )}
+
+                            <div className="flex justify-end">
+                                <button
+                                    onClick={() =>
+                                        setShowCourseForm((previous) => !previous)
+                                    }
+                                    className="rounded-xl bg-[#586FD6] px-4 py-3 text-sm font-bold text-white"
+                                >
+                                    {showCourseForm
+                                        ? "Cancel"
+                                        : "+ New Course"}
+                                </button>
+                            </div>
 
                             {message && <Message>{message}</Message>}
 
@@ -630,7 +1341,10 @@ export default function InstructorDashboard() {
                         >
                             <div className="grid gap-6 xl:grid-cols-[280px_1fr]">
                                 <div className="h-fit rounded-2xl border border-[#ECECF5] bg-white p-4">
-                                    <h3 className="mb-3 font-bold">Select a Course</h3>
+                                    <h3 className="mb-3 font-bold">
+                                        Select a Course
+                                    </h3>
+
                                     {courses.map((course) => (
                                         <button
                                             key={course.id}
@@ -653,12 +1367,18 @@ export default function InstructorDashboard() {
 
                                 <div className="space-y-5">
                                     <div className="rounded-2xl border border-[#ECECF5] bg-white p-6">
-                                        <p className="text-sm text-gray-500">Selected Course</p>
+                                        <p className="text-sm text-gray-500">
+                                            Selected Course
+                                        </p>
+
                                         <h3 className="mt-2 text-2xl font-extrabold">
                                             {selectedCourse.title}
                                         </h3>
+
                                         <div className="mt-3 flex flex-wrap gap-3">
-                                            <StatusBadge status={selectedCourse.status} />
+                                            <StatusBadge
+                                                status={selectedCourse.status}
+                                            />
                                             <span className="text-sm text-gray-500">
                                                 {selectedCourse.lessons} lessons
                                             </span>
@@ -669,7 +1389,9 @@ export default function InstructorDashboard() {
                                     </div>
 
                                     <div className="rounded-2xl border border-[#ECECF5] bg-white p-6">
-                                        <h3 className="text-lg font-bold">Lessons</h3>
+                                        <h3 className="text-lg font-bold">
+                                            Lessons
+                                        </h3>
 
                                         <form
                                             onSubmit={addLesson}
@@ -678,11 +1400,19 @@ export default function InstructorDashboard() {
                                             <input
                                                 required
                                                 value={lessonTitle}
-                                                onChange={(e) => setLessonTitle(e.target.value)}
+                                                onChange={(event) =>
+                                                    setLessonTitle(
+                                                        event.target.value
+                                                    )
+                                                }
                                                 placeholder="Enter a new lesson title"
                                                 className={`${inputClass} flex-1`}
                                             />
-                                            <button className="rounded-xl bg-[#586FD6] px-5 py-3 text-sm font-bold text-white">
+
+                                            <button
+                                                type="submit"
+                                                className="rounded-xl bg-[#586FD6] px-5 py-3 text-sm font-bold text-white"
+                                            >
                                                 + Add Lesson
                                             </button>
                                         </form>
@@ -694,33 +1424,39 @@ export default function InstructorDashboard() {
                                                 <EmptyState text="No lessons yet. Add your first lesson above." />
                                             ) : (
                                                 currentLessons.map((lesson, index) => (
-                                                    <div
+                                                    <Link
                                                         key={lesson.id}
-                                                        className="flex items-center gap-3 rounded-xl border border-gray-100 p-4"
+                                                        href={`/instructor-dashboard/lessons/${lesson.id}`}
+                                                        className="flex items-center gap-3 rounded-xl border border-gray-100 p-4 transition hover:border-[#869CFF] hover:bg-[#869CFF]/5"
                                                     >
                                                         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#869CFF]/15 text-[#586FD6]">
                                                             {index + 1}
                                                         </span>
-                                                        <div className="flex-1">
+
+                                                        <div className="min-w-0 flex-1">
                                                             <p className="text-sm font-semibold">
                                                                 {lesson.title}
                                                             </p>
+
                                                             <p className="mt-1 text-xs text-gray-400">
                                                                 {lesson.type}
                                                             </p>
                                                         </div>
-                                                        <span className="text-xs text-gray-400">
-                                                            Lesson
+
+                                                        <span className="text-sm font-semibold text-[#586FD6]">
+                                                            Open →
                                                         </span>
-                                                    </div>
+                                                    </Link>
                                                 ))
                                             )}
                                         </div>
 
                                         <p className="mt-5 text-xs leading-5 text-gray-400">
-                                            This demo stores lesson titles in local page state.
-                                            Video uploads, PDF uploads, and lesson editing need
-                                            backend and file-storage integration.
+                                            This demo stores lesson titles in
+                                            local page state. Video uploads, PDF
+                                            uploads, and lesson editing need
+                                            backend and file-storage
+                                            integration.
                                         </p>
                                     </div>
                                 </div>
@@ -735,19 +1471,31 @@ export default function InstructorDashboard() {
                             description="View your students and their course progress."
                         >
                             <div className="mb-5 grid gap-4 sm:grid-cols-3">
-                                <StatCard label="Sample Students" value={String(students.length)} icon="♙" />
+                                <StatCard
+                                    label="Sample Students"
+                                    value={String(students.length)}
+                                    icon="♙"
+                                />
+
                                 <StatCard
                                     label="Average Progress"
                                     value={`${Math.round(
-                                        students.reduce((sum, student) => sum + student.progress, 0) /
-                                        Math.max(students.length, 1)
+                                        students.reduce(
+                                            (sum, student) =>
+                                                sum + student.progress,
+                                            0
+                                        ) / Math.max(students.length, 1)
                                     )}%`}
                                     icon="↗"
                                 />
+
                                 <StatCard
                                     label="Active Students"
                                     value={String(
-                                        students.filter((student) => student.status === "Active").length
+                                        students.filter(
+                                            (student) =>
+                                                student.status === "Active"
+                                        ).length
                                     )}
                                     icon="✓"
                                 />
@@ -757,41 +1505,73 @@ export default function InstructorDashboard() {
                                 <table className="w-full min-w-[750px] text-left text-sm">
                                     <thead className="bg-[#F8F8FC] text-gray-500">
                                         <tr>
-                                            <th className="p-4 font-medium">Student</th>
-                                            <th className="p-4 font-medium">Course</th>
-                                            <th className="p-4 font-medium">Progress</th>
-                                            <th className="p-4 font-medium">Status</th>
+                                            <th className="p-4 font-medium">
+                                                Student
+                                            </th>
+                                            <th className="p-4 font-medium">
+                                                Course
+                                            </th>
+                                            <th className="p-4 font-medium">
+                                                Progress
+                                            </th>
+                                            <th className="p-4 font-medium">
+                                                Status
+                                            </th>
                                         </tr>
                                     </thead>
+
                                     <tbody>
                                         {students.map((student) => (
-                                            <tr key={student.id} className="border-t border-gray-100">
+                                            <tr
+                                                key={student.id}
+                                                className="border-t border-gray-100"
+                                            >
                                                 <td className="p-4">
-                                                    <p className="font-semibold">{student.name}</p>
+                                                    <p className="font-semibold">
+                                                        {student.name}
+                                                    </p>
                                                     <p className="mt-1 text-xs text-gray-400">
                                                         {student.email}
                                                     </p>
                                                 </td>
-                                                <td className="p-4">{student.course}</td>
+
+                                                <td className="p-4">
+                                                    {student.course}
+                                                </td>
+
                                                 <td className="p-4">
                                                     <div className="w-36">
                                                         <div className="mb-2 flex justify-between text-xs">
-                                                            <span>{student.progress}%</span>
+                                                            <span>
+                                                                {
+                                                                    student.progress
+                                                                }
+                                                                %
+                                                            </span>
                                                         </div>
-                                                        <ProgressBar value={student.progress} />
+                                                        <ProgressBar
+                                                            value={
+                                                                student.progress
+                                                            }
+                                                        />
                                                     </div>
                                                 </td>
+
                                                 <td className="p-4">
-                                                    <StatusBadge status={student.status} />
+                                                    <StatusBadge
+                                                        status={student.status}
+                                                    />
                                                 </td>
                                             </tr>
                                         ))}
                                     </tbody>
                                 </table>
                             </div>
+
                             <p className="mt-4 text-xs text-gray-400">
-                                Student records are examples. Real student data should come
-                                from courses the instructor is authorized to manage.
+                                Student records are examples. Real student data
+                                should come from courses the instructor is
+                                authorized to manage.
                             </p>
                         </SectionPanel>
                     )}
@@ -804,11 +1584,15 @@ export default function InstructorDashboard() {
                             action={
                                 <button
                                     onClick={() =>
-                                        setShowAssignmentForm((previous) => !previous)
+                                        setShowAssignmentForm(
+                                            (previous) => !previous
+                                        )
                                     }
                                     className="rounded-xl bg-[#586FD6] px-4 py-3 text-sm font-bold text-white"
                                 >
-                                    {showAssignmentForm ? "Cancel" : "+ New Assignment"}
+                                    {showAssignmentForm
+                                        ? "Cancel"
+                                        : "+ New Assignment"}
                                 </button>
                             }
                         >
@@ -820,40 +1604,62 @@ export default function InstructorDashboard() {
                                     <h3 className="mb-5 text-lg font-bold">
                                         Create an Assignment
                                     </h3>
+
                                     <div className="grid gap-4 sm:grid-cols-2">
                                         <Field label="Assignment Title">
                                             <input
                                                 required
                                                 value={assignmentTitle}
-                                                onChange={(e) => setAssignmentTitle(e.target.value)}
+                                                onChange={(event) =>
+                                                    setAssignmentTitle(
+                                                        event.target.value
+                                                    )
+                                                }
                                                 placeholder="Enter assignment title"
                                                 className={inputClass}
                                             />
                                         </Field>
+
                                         <Field label="Course">
                                             <select
                                                 value={assignmentCourseId}
-                                                onChange={(e) => setAssignmentCourseId(e.target.value)}
+                                                onChange={(event) =>
+                                                    setAssignmentCourseId(
+                                                        event.target.value
+                                                    )
+                                                }
                                                 className={inputClass}
                                             >
                                                 {courses.map((course) => (
-                                                    <option key={course.id} value={course.id}>
+                                                    <option
+                                                        key={course.id}
+                                                        value={course.id}
+                                                    >
                                                         {course.title}
                                                     </option>
                                                 ))}
                                             </select>
                                         </Field>
+
                                         <Field label="Due Date">
                                             <input
                                                 required
                                                 type="date"
                                                 value={assignmentDueDate}
-                                                onChange={(e) => setAssignmentDueDate(e.target.value)}
+                                                onChange={(event) =>
+                                                    setAssignmentDueDate(
+                                                        event.target.value
+                                                    )
+                                                }
                                                 className={inputClass}
                                             />
                                         </Field>
                                     </div>
-                                    <button className="mt-5 rounded-xl bg-[#586FD6] px-5 py-3 text-sm font-bold text-white">
+
+                                    <button
+                                        type="submit"
+                                        className="mt-5 rounded-xl bg-[#586FD6] px-5 py-3 text-sm font-bold text-white"
+                                    >
                                         Save Assignment
                                     </button>
                                 </form>
@@ -868,7 +1674,9 @@ export default function InstructorDashboard() {
                                         className="flex flex-col justify-between gap-4 rounded-2xl border border-[#ECECF5] bg-white p-5 sm:flex-row sm:items-center"
                                     >
                                         <div>
-                                            <h3 className="font-bold">{assignment.title}</h3>
+                                            <h3 className="font-bold">
+                                                {assignment.title}
+                                            </h3>
                                             <p className="mt-2 text-sm text-gray-500">
                                                 {assignment.course}
                                             </p>
@@ -876,22 +1684,29 @@ export default function InstructorDashboard() {
                                                 Due: {assignment.dueDate}
                                             </p>
                                         </div>
+
                                         <div className="flex items-center gap-4">
                                             <div className="text-right">
                                                 <p className="text-xl font-extrabold">
                                                     {assignment.submissions}
                                                 </p>
-                                                <p className="text-xs text-gray-400">Submissions</p>
+                                                <p className="text-xs text-gray-400">
+                                                    Submissions
+                                                </p>
                                             </div>
-                                            <StatusBadge status={assignment.status} />
+
+                                            <StatusBadge
+                                                status={assignment.status}
+                                            />
                                         </div>
                                     </div>
                                 ))}
                             </div>
 
                             <p className="mt-4 text-xs text-gray-400">
-                                Assignment creation is local demo functionality. Submission
-                                uploads, grading, feedback, and deadlines need backend support.
+                                Assignment creation is local demo
+                                functionality. Submission uploads, grading,
+                                feedback, and deadlines need backend support.
                             </p>
                         </SectionPanel>
                     )}
@@ -903,7 +1718,9 @@ export default function InstructorDashboard() {
                             description="Review your upcoming live sessions and workshops."
                         >
                             <div className="mb-5 rounded-2xl bg-gradient-to-r from-[#869CFF]/20 to-[#E2A3FF]/20 p-6">
-                                <p className="text-sm text-gray-500">Scheduled activities</p>
+                                <p className="text-sm text-gray-500">
+                                    Scheduled activities
+                                </p>
                                 <p className="mt-2 text-3xl font-extrabold">
                                     {sessions.length}
                                 </p>
@@ -918,17 +1735,23 @@ export default function InstructorDashboard() {
                                         <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#869CFF]/15 text-xl text-[#586FD6]">
                                             ▦
                                         </div>
+
                                         <div className="flex-1">
                                             <span className="text-xs font-semibold text-[#586FD6]">
                                                 {session.type}
                                             </span>
-                                            <h3 className="mt-1 font-bold">{session.title}</h3>
+                                            <h3 className="mt-1 font-bold">
+                                                {session.title}
+                                            </h3>
                                             <p className="mt-1 text-sm text-gray-500">
                                                 {session.course}
                                             </p>
                                         </div>
+
                                         <div className="sm:text-right">
-                                            <p className="text-sm font-semibold">{session.date}</p>
+                                            <p className="text-sm font-semibold">
+                                                {session.date}
+                                            </p>
                                             <p className="mt-1 text-xs text-gray-400">
                                                 {session.time}
                                             </p>
@@ -936,9 +1759,11 @@ export default function InstructorDashboard() {
                                     </div>
                                 ))}
                             </div>
+
                             <p className="mt-4 text-xs text-gray-400">
-                                Session dates are examples. Calendar integration and creating
-                                or editing sessions have not been connected.
+                                Session dates are examples. Calendar
+                                integration and creating or editing sessions
+                                have not been connected.
                             </p>
                         </SectionPanel>
                     )}
@@ -973,103 +1798,277 @@ export default function InstructorDashboard() {
                                                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-[#869CFF]/40 to-[#E2A3FF]/50 font-bold">
                                                     {review.name.charAt(0)}
                                                 </div>
+
                                                 <div>
-                                                    <p className="font-bold">{review.name}</p>
+                                                    <p className="font-bold">
+                                                        {review.name}
+                                                    </p>
                                                     <p className="mt-1 text-xs text-gray-400">
                                                         {review.course}
                                                     </p>
                                                 </div>
                                             </div>
+
                                             <span className="text-sm font-bold text-[#B78636]">
                                                 {"★".repeat(review.rating)}
                                                 <span className="text-gray-200">
-                                                    {"★".repeat(5 - review.rating)}
+                                                    {"★".repeat(
+                                                        5 - review.rating
+                                                    )}
                                                 </span>
                                             </span>
                                         </div>
+
                                         <p className="mt-5 text-sm leading-6 text-gray-600">
                                             “{review.message}”
                                         </p>
                                     </div>
                                 ))}
                             </div>
+
                             <p className="mt-4 text-xs text-gray-400">
-                                These are example reviews, not real student feedback.
+                                These are example reviews, not real student
+                                feedback.
                             </p>
                         </SectionPanel>
                     )}
+
 
                     {/* PROFILE */}
                     {activeSection === "profile" && (
                         <SectionPanel
                             title="My Profile"
-                            description="Manage your instructor information."
+                            description="Manage your personal information and password."
                         >
-                            <form
-                                onSubmit={saveProfile}
-                                className="max-w-3xl rounded-2xl border border-[#ECECF5] bg-white p-6 sm:p-8"
-                            >
-                                <div className="mb-7 flex items-center gap-4">
-                                    <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-[#869CFF] to-[#E2A3FF] text-2xl font-bold text-white">
-                                        {instructorName.charAt(0).toUpperCase()}
-                                    </div>
-                                    <div>
-                                        <h3 className="text-lg font-bold">Instructor Details</h3>
-                                        <p className="text-sm text-gray-500">
-                                            Keep your professional profile up to date.
-                                        </p>
-                                    </div>
-                                </div>
+                            <div className="grid items-start gap-6 xl:grid-cols-[1fr_1fr]">
+                                {/* Personal Information */}
+                                <form
+                                    onSubmit={saveProfile}
+                                    className="rounded-2xl border border-[#ECECF5] bg-white p-6"
+                                >
 
-                                <Field label="Full Name">
+                                    <div className="mb-6 flex items-center gap-4">
+                                        <div className="relative h-20 w-20 shrink-0">
+                                            {profilePhoto ? (
+                                                <img
+                                                    src={profilePhoto}
+                                                    alt="Instructor profile"
+                                                    className="h-20 w-20 rounded-2xl object-cover"
+                                                />
+                                            ) : (
+                                                <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-r from-[#869CFF] to-[#E2A3FF] text-4xl font-bold text-white">
+                                                    {profilePhoto ? (
+                                                        <img src={profilePhoto} alt="Instructor profile" className="h-full w-full object-cover" />
+                                                    ) : (
+                                                        instructorName.charAt(0).toUpperCase()
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            <label
+                                                htmlFor="instructor-photo"
+                                                className="absolute -bottom-2 -right-2 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border-2 border-white bg-[#586FD6] text-white shadow-md transition hover:bg-[#455BC1]"
+                                                title="Upload profile photo"
+                                            >
+                                                <svg
+                                                    xmlns="http://www.w3.org/2000/svg"
+                                                    width="16"
+                                                    height="16"
+                                                    viewBox="0 0 24 24"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    strokeWidth="2"
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                >
+                                                    <path d="M14 5h-4L8 8H4v12h16V8h-4z" />
+                                                    <circle cx="12" cy="14" r="3" />
+                                                </svg>
+                                            </label>
+
+                                            <input
+                                                id="instructor-photo"
+                                                type="file"
+                                                accept="image/*"
+                                                className="hidden"
+                                                onChange={(e) => {
+                                                    const file = e.target.files?.[0];
+
+                                                    if (!file) return;
+
+                                                    if (!file.type.startsWith("image/")) {
+                                                        alert("Please select an image file.");
+                                                        return;
+                                                    }
+
+                                                    if (file.size > 5 * 1024 * 1024) {
+                                                        alert("Image size must be 5 MB or less.");
+                                                        e.target.value = "";
+                                                        return;
+                                                    }
+
+                                                    const reader = new FileReader();
+
+                                                    reader.onload = () => {
+                                                        if (typeof reader.result === "string") {
+                                                            setProfilePhoto(reader.result);
+                                                        }
+                                                    };
+
+                                                    reader.readAsDataURL(file);
+                                                }}
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <h3 className="text-lg font-bold">Personal Information</h3>
+                                            <p className="text-sm text-gray-500">
+                                                Update your profile details and photo.
+                                            </p>
+
+                                            <label
+                                                htmlFor="instructor-photo"
+                                                className="mt-2 inline-block cursor-pointer text-sm font-semibold text-[#586FD6] hover:underline"
+                                            >
+                                                Upload Photo
+                                            </label>
+
+                                            {profilePhoto && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setProfilePhoto("")}
+                                                    className="ml-3 text-sm font-semibold text-red-500 hover:underline"
+                                                >
+                                                    Remove
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <label className="mb-2 block text-sm font-semibold">
+                                        Full Name
+                                    </label>
                                     <input
-                                        required
                                         value={instructorName}
                                         onChange={(e) => setInstructorName(e.target.value)}
-                                        className={inputClass}
-                                        placeholder="Your full name"
-                                    />
-                                </Field>
-
-                                <Field label="Email Address">
-                                    <input
                                         required
+                                        className="mb-4 w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-[#869CFF]"
+                                        placeholder="Enter your full name"
+                                    />
+
+                                    <label className="mb-2 block text-sm font-semibold">
+                                        Email Address
+                                    </label>
+                                    <input
                                         type="email"
                                         value={email}
                                         onChange={(e) => setEmail(e.target.value)}
-                                        className={inputClass}
-                                        placeholder="Your email address"
+                                        required
+                                        className="mb-4 w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-[#869CFF]"
+                                        placeholder="Enter your email"
                                     />
-                                </Field>
 
-                                <Field label="Professional Bio">
-                                    <textarea
-                                        rows={4}
-                                        value={bio}
-                                        onChange={(e) => setBio(e.target.value)}
-                                        className={inputClass}
-                                        placeholder="Tell students about your experience"
+                                    <label className="mb-2 block text-sm font-semibold">
+                                        Phone Number
+                                    </label>
+                                    <input
+                                        type="tel"
+                                        value={phone}
+                                        onChange={(e) => setPhone(e.target.value)}
+                                        className="mb-4 w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-[#869CFF]"
+                                        placeholder="Enter your phone number"
                                     />
-                                </Field>
 
-                                {message && <Message>{message}</Message>}
+                                    {saveMessage && (
+                                        <p className="mb-4 rounded-xl bg-[#869CFF]/10 p-3 text-sm text-[#455BC1]">
+                                            {saveMessage}
+                                        </p>
+                                    )}
 
-                                <button
-                                    type="submit"
-                                    className="mt-5 rounded-xl bg-[#586FD6] px-5 py-3 text-sm font-bold text-white hover:bg-[#455BC1]"
+                                    <button
+                                        type="submit"
+                                        className="rounded-xl bg-[#586FD6] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#455BC1]"
+                                    >
+                                        Save Changes
+                                    </button>
+                                </form>
+
+                                {/* Change Password */}
+                                <form
+                                    onSubmit={changePassword}
+                                    className="rounded-2xl border border-[#ECECF5] bg-white p-6"
                                 >
-                                    Save Profile
-                                </button>
-                            </form>
+                                    <h3 className="text-lg font-bold">
+                                        Change Password
+                                    </h3>
+
+                                    <p className="mb-6 mt-1 text-sm text-gray-500">
+                                        Choose a strong password for your account.
+                                    </p>
+
+                                    <label className="mb-2 block text-sm font-semibold">
+                                        Current Password
+                                    </label>
+                                    <input
+                                        type="password"
+                                        value={currentPassword}
+                                        onChange={(e) => {
+                                            setCurrentPassword(e.target.value);
+                                            setPasswordMessage("");
+                                        }}
+                                        required
+                                        autoComplete="current-password"
+                                        className="mb-4 w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-[#869CFF]"
+                                        placeholder="Enter current password"
+                                    />
+
+                                    <label className="mb-2 block text-sm font-semibold">
+                                        New Password
+                                    </label>
+                                    <input
+                                        type="password"
+                                        value={newPassword}
+                                        onChange={(e) => {
+                                            setNewPassword(e.target.value);
+                                            setPasswordMessage("");
+                                        }}
+                                        required
+                                        minLength={8}
+                                        autoComplete="new-password"
+                                        className="mb-4 w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-[#869CFF]"
+                                        placeholder="At least 8 characters"
+                                    />
+
+                                    {passwordMessage && (
+                                        <p className="mb-4 rounded-xl bg-[#E2A3FF]/20 p-3 text-sm text-[#45405A]">
+                                            {passwordMessage}
+                                        </p>
+                                    )}
+
+                                    <button
+                                        type="submit"
+                                        className="rounded-xl border border-[#869CFF]/50 px-5 py-3 text-sm font-bold text-[#586FD6] transition hover:bg-[#869CFF]/10"
+                                    >
+                                        Update Password
+                                    </button>
+
+                                    <p className="mt-4 text-xs leading-5 text-gray-400">
+                                        Password changes require backend authentication
+                                        before they can update a real account.
+                                    </p>
+                                </form>
+                            </div>
                         </SectionPanel>
                     )}
 
+
                     <footer className="mt-10 border-t border-[#ECECF5] py-6 text-center text-xs text-gray-400">
-                        © {new Date().getFullYear()} Codo Learn. Empowering instructors.
+                        © {new Date().getFullYear()} Codo Learn. Empowering
+                        instructors.
                     </footer>
                 </div>
-            </main>
-        </div>
+            </main >
+        </div >
     );
 }
 
@@ -1096,7 +2095,9 @@ function SectionPanel({
             <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
                     <h2 className="text-2xl font-extrabold">{title}</h2>
-                    <p className="mt-2 text-sm text-gray-500">{description}</p>
+                    <p className="mt-2 text-sm text-gray-500">
+                        {description}
+                    </p>
                 </div>
                 {action}
             </div>
@@ -1142,6 +2143,7 @@ function CourseCard({
                     background: `linear-gradient(to right, ${course.color}, #E2A3FF)`,
                 }}
             />
+
             <div className="p-5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="rounded-lg bg-[#869CFF]/10 px-3 py-1.5 text-xs font-semibold text-[#586FD6]">
@@ -1155,11 +2157,16 @@ function CourseCard({
                 <div className="mt-5 grid grid-cols-2 gap-3">
                     <div className="rounded-xl bg-[#F8F8FC] p-3">
                         <p className="text-xs text-gray-500">Students</p>
-                        <p className="mt-1 text-xl font-extrabold">{course.students}</p>
+                        <p className="mt-1 text-xl font-extrabold">
+                            {course.students}
+                        </p>
                     </div>
+
                     <div className="rounded-xl bg-[#F8F8FC] p-3">
                         <p className="text-xs text-gray-500">Lessons</p>
-                        <p className="mt-1 text-xl font-extrabold">{course.lessons}</p>
+                        <p className="mt-1 text-xl font-extrabold">
+                            {course.lessons}
+                        </p>
                     </div>
                 </div>
 
@@ -1187,7 +2194,8 @@ function ProgressBar({ value }: { value: number }) {
                 className="h-full rounded-full transition-all duration-500"
                 style={{
                     width: `${value}%`,
-                    background: "linear-gradient(to right, #869CFF, #E2A3FF)",
+                    background:
+                        "linear-gradient(to right, #869CFF, #E2A3FF)",
                 }}
             />
         </div>
@@ -1221,7 +2229,9 @@ function Field({
 }) {
     return (
         <label className="mb-4 block">
-            <span className="mb-2 block text-sm font-semibold">{label}</span>
+            <span className="mb-2 block text-sm font-semibold">
+                {label}
+            </span>
             {children}
         </label>
     );

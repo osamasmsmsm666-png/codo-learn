@@ -28,6 +28,7 @@ const tracks = [
 
 export default function Tracks() {
     return (
+
         <section
             id="tracks"
             className="bg-[#F8F8FC] px-6 py-24"
@@ -36,6 +37,7 @@ export default function Tracks() {
 
                 {/* Header */}
                 <motion.div
+
                     initial={{ opacity: 0, y: 30 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}

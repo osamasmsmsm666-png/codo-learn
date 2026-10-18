@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { motion } from "motion/react";
@@ -114,7 +114,7 @@ export default function StudentDashboard() {
     const [courses, setCourses] = useState(initialCourses);
     const [notifications, setNotifications] =
         useState(initialNotifications);
-
+    const [profilePhoto, setProfilePhoto] = useState("");
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [studentName, setStudentName] = useState("Student Name");
     const [email, setEmail] = useState("student@example.com");
@@ -123,6 +123,57 @@ export default function StudentDashboard() {
     const [currentPassword, setCurrentPassword] = useState("");
     const [newPassword, setNewPassword] = useState("");
     const [passwordMessage, setPasswordMessage] = useState("");
+    const [profileLoaded, setProfileLoaded] = useState(false);
+
+    useEffect(() => {
+        try {
+            const saved = localStorage.getItem("codo-student-profile");
+
+            if (saved) {
+                const profile = JSON.parse(saved);
+
+                if (typeof profile.studentName === "string") {
+                    setStudentName(profile.studentName);
+                }
+
+                if (typeof profile.email === "string") {
+                    setEmail(profile.email);
+                }
+
+                if (typeof profile.phone === "string") {
+                    setPhone(profile.phone);
+                }
+
+                if (typeof profile.profilePhoto === "string") {
+                    setProfilePhoto(profile.profilePhoto);
+                }
+            }
+        } catch {
+            console.error("Could not load student profile.");
+        } finally {
+            setProfileLoaded(true);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!profileLoaded) return;
+
+        try {
+            localStorage.setItem(
+                "codo-student-profile",
+                JSON.stringify({
+                    studentName,
+                    email,
+                    phone,
+                    profilePhoto,
+                })
+            );
+        } catch {
+            setSaveMessage(
+                "Could not save your profile. Try using a smaller photo."
+            );
+        }
+    }, [studentName, email, phone, profilePhoto, profileLoaded]);
 
     const selectedCourse =
         courses.find((course) => course.id === selectedCourseId) ??
@@ -166,9 +217,8 @@ export default function StudentDashboard() {
 
     function saveProfile(event: React.FormEvent<HTMLFormElement>) {
         event.preventDefault();
-        setSaveMessage("Your profile changes have been saved in this demo.");
+        setSaveMessage("Your profile changes have been saved successfully.");
     }
-
     function changePassword(event: React.FormEvent<HTMLFormElement>) {
         event.preventDefault();
 
@@ -313,8 +363,16 @@ export default function StudentDashboard() {
                             onClick={() => openSection("profile")}
                             className="flex items-center gap-2 rounded-xl p-1.5 hover:bg-gray-50"
                         >
-                            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#869CFF] to-[#E2A3FF] font-bold text-white">
-                                {studentName.charAt(0).toUpperCase()}
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-[#869CFF] to-[#E2A3FF] font-bold text-white">
+                                {profilePhoto ? (
+                                    <img
+                                        src={profilePhoto}
+                                        alt="Student profile"
+                                        className="h-full w-full object-cover"
+                                    />
+                                ) : (
+                                    studentName.charAt(0).toUpperCase()
+                                )}
                             </div>
                             <div className="hidden text-left sm:block">
                                 <p className="max-w-32 truncate text-sm font-semibold">
@@ -877,6 +935,7 @@ export default function StudentDashboard() {
                         </SectionPanel>
                     )}
 
+
                     {/* PROFILE */}
                     {activeSection === "profile" && (
                         <SectionPanel
@@ -884,21 +943,112 @@ export default function StudentDashboard() {
                             description="Manage your personal information and password."
                         >
                             <div className="grid items-start gap-6 xl:grid-cols-[1fr_1fr]">
+                                {/* Personal Information */}
                                 <form
                                     onSubmit={saveProfile}
                                     className="rounded-2xl border border-[#ECECF5] bg-white p-6"
                                 >
                                     <div className="mb-6 flex items-center gap-4">
-                                        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-[#869CFF] to-[#E2A3FF] text-2xl font-bold text-white">
-                                            {studentName.charAt(0).toUpperCase()}
+                                        <div className="relative h-20 w-20 shrink-0">
+                                            {profilePhoto ? (
+                                                <img
+                                                    src={profilePhoto}
+                                                    alt="Student profile"
+                                                    className="h-20 w-20 rounded-2xl object-cover"
+                                                />
+                                            ) : (
+                                                <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-[#869CFF] to-[#E2A3FF] text-3xl font-bold text-white">
+                                                    {studentName.charAt(0).toUpperCase()}
+                                                </div>
+                                            )}
+
+                                            <label
+                                                htmlFor="student-photo"
+                                                title="Upload profile photo"
+                                                className="absolute -bottom-2 -right-2 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border-2 border-white bg-[#586FD6] text-white shadow-md transition hover:bg-[#455BC1]"
+                                            >
+                                                <svg
+                                                    xmlns="http://www.w3.org/2000/svg"
+                                                    width="16"
+                                                    height="16"
+                                                    viewBox="0 0 24 24"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    strokeWidth="2"
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                >
+                                                    <path d="M14 5h-4L8 8H4v12h16V8h-4z" />
+                                                    <circle cx="12" cy="14" r="3" />
+                                                </svg>
+                                            </label>
+
+                                            <input
+                                                id="student-photo"
+                                                type="file"
+                                                accept="image/*"
+                                                className="hidden"
+                                                onChange={(e) => {
+                                                    const file = e.target.files?.[0];
+
+                                                    if (!file) return;
+
+                                                    if (!file.type.startsWith("image/")) {
+                                                        alert("Please select an image file.");
+                                                        e.target.value = "";
+                                                        return;
+                                                    }
+
+                                                    if (file.size > 5 * 1024 * 1024) {
+                                                        alert("Image size must be 5 MB or less.");
+                                                        e.target.value = "";
+                                                        return;
+                                                    }
+
+                                                    const reader = new FileReader();
+
+                                                    reader.onload = () => {
+                                                        if (typeof reader.result === "string") {
+                                                            setProfilePhoto(reader.result);
+                                                        }
+                                                    };
+
+                                                    reader.readAsDataURL(file);
+                                                }}
+                                            />
                                         </div>
+
                                         <div>
                                             <h3 className="text-lg font-bold">
                                                 Personal Information
                                             </h3>
                                             <p className="text-sm text-gray-500">
-                                                Update your profile details.
+                                                Update your profile details and photo.
                                             </p>
+
+                                            <label
+                                                htmlFor="student-photo"
+                                                className="mt-2 inline-block cursor-pointer text-sm font-semibold text-[#586FD6] hover:underline"
+                                            >
+                                                Upload Photo
+                                            </label>
+
+                                            {profilePhoto && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setProfilePhoto("");
+                                                        const input = document.getElementById(
+                                                            "student-photo"
+                                                        ) as HTMLInputElement | null;
+
+                                                        if (input) input.value = "";
+                                                    }}
+                                                    className="ml-3 text-sm font-semibold text-red-500 hover:underline"
+                                                >
+                                                    Remove
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
 
@@ -950,6 +1100,7 @@ export default function StudentDashboard() {
                                     </button>
                                 </form>
 
+                                {/* Change Password */}
                                 <form
                                     onSubmit={changePassword}
                                     className="rounded-2xl border border-[#ECECF5] bg-white p-6"
