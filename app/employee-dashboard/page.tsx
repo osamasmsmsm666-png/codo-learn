@@ -1,6 +1,13 @@
 "use client";
 
-import { useState, type FormEvent, type ReactNode } from "react";
+import {
+    useEffect,
+    useRef,
+    useState,
+    type ChangeEvent,
+    type FormEvent,
+    type ReactNode,
+} from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion } from "motion/react";
@@ -29,12 +36,25 @@ type Client = {
     canEdit: boolean;
 };
 
+type Requirement = {
+    id: number;
+    title: string;
+    done: boolean;
+};
+
+// A project is split into phases, and each phase into small requirements.
+type Phase = {
+    id: number;
+    title: string;
+    requirements: Requirement[];
+};
+
 type Project = {
     id: number;
     title: string;
     clientId: number;
     status: ProjectStatus;
-    progress: number;
+    phases: Phase[];
     deadline: string;
 };
 
@@ -94,26 +114,116 @@ const initialProjects: Project[] = [
         title: "E-commerce Website",
         clientId: 1,
         status: "In Progress",
-        progress: 65,
         deadline: "2026-11-15",
+        phases: [
+            {
+                id: 1,
+                title: "Design",
+                requirements: [
+                    { id: 1, title: "Wireframes", done: true },
+                    { id: 2, title: "Product listing page design", done: true },
+                    { id: 3, title: "Checkout flow design", done: false },
+                ],
+            },
+            {
+                id: 2,
+                title: "Development",
+                requirements: [
+                    { id: 4, title: "Product catalog", done: true },
+                    { id: 5, title: "Shopping cart", done: false },
+                    { id: 6, title: "Payment gateway integration", done: false },
+                ],
+            },
+            {
+                id: 3,
+                title: "Launch",
+                requirements: [
+                    { id: 7, title: "Testing & fixes", done: false },
+                    { id: 8, title: "Deployment", done: false },
+                ],
+            },
+        ],
     },
     {
         id: 2,
         title: "Learning Management Portal",
         clientId: 2,
         status: "In Progress",
-        progress: 40,
         deadline: "2026-12-05",
+        phases: [
+            {
+                id: 1,
+                title: "Planning",
+                requirements: [
+                    { id: 1, title: "Requirements document", done: true },
+                    { id: 2, title: "User roles & permissions", done: true },
+                ],
+            },
+            {
+                id: 2,
+                title: "Development",
+                requirements: [
+                    { id: 3, title: "Course catalog UI", done: false },
+                    { id: 4, title: "Student dashboard", done: false },
+                    { id: 5, title: "Instructor dashboard", done: false },
+                ],
+            },
+            {
+                id: 3,
+                title: "Launch",
+                requirements: [
+                    { id: 6, title: "User testing", done: false },
+                    { id: 7, title: "Go live", done: false },
+                ],
+            },
+        ],
     },
     {
         id: 3,
         title: "Fleet Tracking Dashboard",
         clientId: 3,
         status: "Planning",
-        progress: 10,
         deadline: "2027-01-20",
+        phases: [
+            {
+                id: 1,
+                title: "Planning",
+                requirements: [
+                    { id: 1, title: "Requirements gathering", done: false },
+                    { id: 2, title: "Data sources & maps research", done: false },
+                ],
+            },
+            {
+                id: 2,
+                title: "Development",
+                requirements: [
+                    { id: 3, title: "Live map view", done: false },
+                    { id: 4, title: "Vehicle reports", done: false },
+                ],
+            },
+            {
+                id: 3,
+                title: "Launch",
+                requirements: [
+                    { id: 5, title: "Testing", done: false },
+                    { id: 6, title: "Deployment", done: false },
+                ],
+            },
+        ],
     },
 ];
+
+// Progress is never typed in by hand: it is the share of requirements that
+// are done, so it always matches the checkboxes.
+function countRequirements(project: Project) {
+    const all = project.phases.flatMap((phase) => phase.requirements);
+    return { done: all.filter((r) => r.done).length, total: all.length };
+}
+
+function progressOf(project: Project) {
+    const { done, total } = countRequirements(project);
+    return total === 0 ? 0 : Math.round((done / total) * 100);
+}
 
 const initialTasks: Task[] = [
     {
@@ -174,6 +284,8 @@ const initialNotifications: Notification[] = [
     },
 ];
 
+type FormNote = { type: "success" | "error"; text: string };
+
 const navItems: { id: Section; label: string; icon: string }[] = [
     { id: "overview", label: "Overview", icon: "⌂" },
     { id: "clients", label: "Clients", icon: "♙" },
@@ -193,7 +305,7 @@ const pageTitles: Record<Section, string> = {
 };
 
 const inputClass =
-    "w-full rounded-xl border border-[#ECECF5] bg-white px-4 py-3 text-sm outline-none transition focus:border-[#869CFF] focus:ring-2 focus:ring-[#869CFF]/20";
+    "w-full rounded-xl border border-[#ECECF5] bg-white px-4 py-3.5 text-sm outline-none transition placeholder:text-gray-400 focus:border-[#869CFF] focus:ring-2 focus:ring-[#869CFF]/20";
 
 export default function EmployeeDashboard() {
     const [activeSection, setActiveSection] = useState<Section>("overview");
@@ -212,8 +324,21 @@ export default function EmployeeDashboard() {
 
     const [employeeName, setEmployeeName] = useState("Employee Name");
     const [email, setEmail] = useState("employee@example.com");
-    const [phone, setPhone] = useState("+20 100 000 0000");
-    const [jobTitle, setJobTitle] = useState("Software Developer");
+    const [phone, setPhone] = useState("");
+    const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+    const photoInputRef = useRef<HTMLInputElement>(null);
+    const [profileNote, setProfileNote] = useState<FormNote | null>(null);
+
+    const [currentPassword, setCurrentPassword] = useState("");
+    const [newPassword, setNewPassword] = useState("");
+    const [passwordNote, setPasswordNote] = useState<FormNote | null>(null);
+
+    // Free the temporary photo preview when it is replaced or the page closes.
+    useEffect(() => {
+        return () => {
+            if (photoUrl) URL.revokeObjectURL(photoUrl);
+        };
+    }, [photoUrl]);
 
     const [message, setMessage] = useState("");
 
@@ -222,9 +347,14 @@ export default function EmployeeDashboard() {
     const activeProjects = projects.filter(
         (p) => p.status === "In Progress"
     ).length;
-    const today = new Date().toISOString().slice(0, 10);
+    // Current date is read after mount (not during render) to avoid
+    // server/client mismatch and Next.js 16's "current time" prerender error.
+    const [today, setToday] = useState("");
+    useEffect(() => {
+        setToday(new Date().toISOString().slice(0, 10));
+    }, []);
     const overdueTasks = tasks.filter(
-        (t) => t.status !== "Done" && t.deadline < today
+        (t) => t.status !== "Done" && today !== "" && t.deadline < today
     ).length;
 
     const visibleTasks =
@@ -277,16 +407,42 @@ export default function EmployeeDashboard() {
         setMessage("Client information updated in this demo dashboard.");
     }
 
-    function updateProject(
-        id: number,
-        changes: Partial<Pick<Project, "status" | "progress">>
+    function toggleRequirement(
+        projectId: number,
+        phaseId: number,
+        requirementId: number
     ) {
         setProjects((previous) =>
-            previous.map((project) =>
-                project.id === id ? { ...project, ...changes } : project
-            )
+            previous.map((project) => {
+                if (project.id !== projectId) return project;
+
+                const phases = project.phases.map((phase) =>
+                    phase.id === phaseId
+                        ? {
+                              ...phase,
+                              requirements: phase.requirements.map((r) =>
+                                  r.id === requirementId ? { ...r, done: !r.done } : r
+                              ),
+                          }
+                        : phase
+                );
+
+                const next = { ...project, phases };
+                const { done, total } = countRequirements(next);
+
+                // Keep the status in step with the checkboxes
+                // ("On Hold" is only ever changed by hand).
+                let status = project.status;
+                if (status !== "On Hold") {
+                    if (done === total) status = "Completed";
+                    else if (done === 0) status = "Planning";
+                    else status = "In Progress";
+                }
+
+                return { ...next, status };
+            })
         );
-        setMessage("Project updated in this demo dashboard.");
+        setMessage("Requirement updated in this demo dashboard.");
     }
 
     function updateTaskStatus(id: number, status: TaskStatus) {
@@ -310,21 +466,98 @@ export default function EmployeeDashboard() {
         );
     }
 
+    function handlePhotoChange(event: ChangeEvent<HTMLInputElement>) {
+        const file = event.target.files?.[0];
+        event.target.value = ""; // lets the same file be picked again
+
+        if (!file) return;
+
+        if (!file.type.startsWith("image/")) {
+            setProfileNote({ type: "error", text: "Please choose an image file." });
+            return;
+        }
+
+        if (file.size > 2 * 1024 * 1024) {
+            setProfileNote({
+                type: "error",
+                text: "The image must be smaller than 2 MB.",
+            });
+            return;
+        }
+
+        setPhotoUrl(URL.createObjectURL(file));
+        setProfileNote({
+            type: "success",
+            text: "Photo selected. Backend storage is still needed to keep it after a refresh.",
+        });
+    }
+
     function saveProfile(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
+        setProfileNote(null);
 
         if (!employeeName.trim()) {
-            setMessage("Please enter your name.");
+            setProfileNote({ type: "error", text: "Please enter your full name." });
             return;
         }
 
         const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailPattern.test(email.trim())) {
-            setMessage("Please enter a valid email address.");
+            setProfileNote({
+                type: "error",
+                text: "Please enter a valid email address.",
+            });
             return;
         }
 
-        setMessage("Profile saved in this demo. Backend integration is still needed.");
+        if (phone.trim() && !/^[+\d\s()-]{7,20}$/.test(phone.trim())) {
+            setProfileNote({
+                type: "error",
+                text: "Please enter a valid phone number.",
+            });
+            return;
+        }
+
+        setProfileNote({
+            type: "success",
+            text: "Profile saved in this demo. Backend integration is still needed.",
+        });
+    }
+
+    function updatePassword(event: FormEvent<HTMLFormElement>) {
+        event.preventDefault();
+        setPasswordNote(null);
+
+        if (!currentPassword) {
+            setPasswordNote({
+                type: "error",
+                text: "Please enter your current password.",
+            });
+            return;
+        }
+
+        if (newPassword.length < 8) {
+            setPasswordNote({
+                type: "error",
+                text: "The new password must contain at least 8 characters.",
+            });
+            return;
+        }
+
+        if (newPassword === currentPassword) {
+            setPasswordNote({
+                type: "error",
+                text: "The new password must be different from the current one.",
+            });
+            return;
+        }
+
+        setCurrentPassword("");
+        setNewPassword("");
+        setPasswordNote({
+            type: "success",
+            text: "Password form is valid. Backend authentication is needed to change a real password.",
+        });
     }
 
     return (
@@ -431,9 +664,11 @@ export default function EmployeeDashboard() {
                             onClick={() => openSection("profile")}
                             className="flex items-center gap-3 rounded-xl p-1.5 hover:bg-gray-50"
                         >
-                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#869CFF] to-[#E2A3FF] font-bold text-white">
-                                {employeeName.charAt(0).toUpperCase()}
-                            </div>
+                            <Avatar
+                                name={employeeName}
+                                photoUrl={photoUrl}
+                                className="h-10 w-10 rounded-xl"
+                            />
                             <div className="hidden text-left sm:block">
                                 <p className="max-w-36 truncate text-sm font-semibold">
                                     {employeeName}
@@ -550,10 +785,10 @@ export default function EmployeeDashboard() {
                                                         {project.title}
                                                     </span>
                                                     <span className="text-gray-500">
-                                                        {project.progress}%
+                                                        {progressOf(project)}%
                                                     </span>
                                                 </div>
-                                                <ProgressBar value={project.progress} />
+                                                <ProgressBar value={progressOf(project)} />
                                             </li>
                                         ))}
                                     </ul>
@@ -664,9 +899,9 @@ export default function EmployeeDashboard() {
                     {activeSection === "projects" && (
                         <PageSection
                             title="Assigned Projects"
-                            description="Update the status and progress of the projects assigned to you."
+                            description="Tick off requirements as they are completed."
                         >
-                            <div className="grid gap-5 xl:grid-cols-2">
+                            <div className="grid items-start gap-5 xl:grid-cols-2">
                                 {projects.map((project) => (
                                     <div
                                         key={project.id}
@@ -689,42 +924,40 @@ export default function EmployeeDashboard() {
                                             <div className="mb-2 flex justify-between text-sm">
                                                 <span className="font-semibold">Progress</span>
                                                 <span className="text-gray-500">
-                                                    {project.progress}%
+                                                    {progressOf(project)}%
                                                 </span>
                                             </div>
-                                            <ProgressBar value={project.progress} />
-                                            <input
-                                                type="range"
-                                                min={0}
-                                                max={100}
-                                                step={5}
-                                                value={project.progress}
-                                                onChange={(e) =>
-                                                    updateProject(project.id, {
-                                                        progress: Number(e.target.value),
-                                                    })
-                                                }
-                                                aria-label={`Progress of ${project.title}`}
-                                                className="mt-3 w-full accent-[#869CFF]"
-                                            />
+                                            <ProgressBar value={progressOf(project)} />
                                         </div>
 
-                                        <Field label="Status">
-                                            <select
-                                                value={project.status}
-                                                onChange={(e) =>
-                                                    updateProject(project.id, {
-                                                        status: e.target.value as ProjectStatus,
-                                                    })
+                                        <details open className="group mt-5">
+                                            <summary className="flex cursor-pointer list-none items-center justify-between text-sm font-bold [&::-webkit-details-marker]:hidden">
+                                                <span>
+                                                    Requirements ·{" "}
+                                                    <span className="font-semibold text-gray-500">
+                                                        {countRequirements(project).done} of{" "}
+                                                        {countRequirements(project).total} completed
+                                                    </span>
+                                                </span>
+                                                <span
+                                                    aria-hidden="true"
+                                                    className="text-gray-400 transition group-open:rotate-180"
+                                                >
+                                                    ⌄
+                                                </span>
+                                            </summary>
+                                            <PhaseChecklist
+                                                phases={project.phases}
+                                                onToggle={(phaseId, requirementId) =>
+                                                    toggleRequirement(
+                                                        project.id,
+                                                        phaseId,
+                                                        requirementId
+                                                    )
                                                 }
-                                                className={inputClass}
-                                            >
-                                                <option>Planning</option>
-                                                <option>In Progress</option>
-                                                <option>On Hold</option>
-                                                <option>Completed</option>
-                                            </select>
-                                        </Field>
+                                            />
+                                        </details>
+
                                     </div>
                                 ))}
                             </div>
@@ -784,6 +1017,7 @@ export default function EmployeeDashboard() {
                                                     <td
                                                         className={`px-5 py-4 ${
                                                             task.status !== "Done" &&
+                                                            today !== "" &&
                                                             task.deadline < today
                                                                 ? "font-semibold text-rose-600"
                                                                 : "text-gray-500"
@@ -876,53 +1110,149 @@ export default function EmployeeDashboard() {
                     {activeSection === "profile" && (
                         <PageSection
                             title="My Profile"
-                            description="Update your personal information."
+                            description="Manage your personal information and password."
                         >
-                            <form
-                                onSubmit={saveProfile}
-                                className="max-w-2xl rounded-2xl border border-[#ECECF5] bg-white p-6"
-                            >
-                                <Field label="Full name">
-                                    <input
-                                        value={employeeName}
-                                        onChange={(e) => setEmployeeName(e.target.value)}
-                                        className={inputClass}
-                                    />
-                                </Field>
-                                <Field label="Email">
-                                    <input
-                                        type="email"
-                                        value={email}
-                                        onChange={(e) => setEmail(e.target.value)}
-                                        className={inputClass}
-                                    />
-                                </Field>
-                                <Field label="Phone">
-                                    <input
-                                        value={phone}
-                                        onChange={(e) => setPhone(e.target.value)}
-                                        className={inputClass}
-                                    />
-                                </Field>
-                                <Field label="Job title">
-                                    <input
-                                        value={jobTitle}
-                                        onChange={(e) => setJobTitle(e.target.value)}
-                                        className={inputClass}
-                                    />
-                                </Field>
-
-                                <button
-                                    type="submit"
-                                    className="rounded-xl bg-gradient-to-r from-[#869CFF] to-[#E2A3FF] px-6 py-3 text-sm font-bold text-white"
+                            <div className="grid items-start gap-6 lg:grid-cols-2">
+                                {/* Personal information */}
+                                <form
+                                    onSubmit={saveProfile}
+                                    noValidate
+                                    className="rounded-3xl border border-[#ECECF5] bg-white p-6 sm:p-8"
                                 >
-                                    Save Changes
-                                </button>
+                                    <div className="mb-7 flex items-center gap-5">
+                                        <div className="relative shrink-0">
+                                            <Avatar
+                                                name={employeeName}
+                                                photoUrl={photoUrl}
+                                                className="h-[68px] w-[68px] rounded-2xl text-3xl"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => photoInputRef.current?.click()}
+                                                aria-label="Upload photo"
+                                                className="absolute -bottom-2 -right-2 flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-[#586FD6] text-white shadow-md hover:bg-[#455BC1]"
+                                            >
+                                                <CameraIcon />
+                                            </button>
+                                        </div>
 
-                                {message && <Message>{message}</Message>}
-                            </form>
+                                        <div>
+                                            <h3 className="text-xl font-extrabold">
+                                                Personal Information
+                                            </h3>
+                                            <p className="mt-1 text-sm text-gray-500">
+                                                Update your profile details and photo.
+                                            </p>
+                                            <button
+                                                type="button"
+                                                onClick={() => photoInputRef.current?.click()}
+                                                className="mt-2 text-sm font-bold text-[#586FD6] hover:text-[#455BC1]"
+                                            >
+                                                Upload Photo
+                                            </button>
+                                            <input
+                                                ref={photoInputRef}
+                                                type="file"
+                                                accept="image/*"
+                                                onChange={handlePhotoChange}
+                                                className="hidden"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <Field label="Full Name">
+                                        <input
+                                            value={employeeName}
+                                            onChange={(e) => setEmployeeName(e.target.value)}
+                                            placeholder="Enter your full name"
+                                            autoComplete="name"
+                                            className={inputClass}
+                                        />
+                                    </Field>
+                                    <Field label="Email Address">
+                                        <input
+                                            type="email"
+                                            value={email}
+                                            onChange={(e) => setEmail(e.target.value)}
+                                            placeholder="Enter your email address"
+                                            autoComplete="email"
+                                            className={inputClass}
+                                        />
+                                    </Field>
+                                    <Field label="Phone Number">
+                                        <input
+                                            type="tel"
+                                            value={phone}
+                                            onChange={(e) => setPhone(e.target.value)}
+                                            placeholder="Enter your phone number"
+                                            autoComplete="tel"
+                                            className={inputClass}
+                                        />
+                                    </Field>
+
+                                    <button
+                                        type="submit"
+                                        className="rounded-xl bg-[#586FD6] px-6 py-3.5 text-sm font-bold text-white transition hover:bg-[#455BC1]"
+                                    >
+                                        Save Changes
+                                    </button>
+
+                                    <NoteBanner note={profileNote} />
+                                </form>
+
+                                {/* Change password */}
+                                <form
+                                    onSubmit={updatePassword}
+                                    noValidate
+                                    className="rounded-3xl border border-[#ECECF5] bg-white p-6 sm:p-8"
+                                >
+                                    <h3 className="text-xl font-extrabold">Change Password</h3>
+                                    <p className="mb-7 mt-1 text-sm text-gray-500">
+                                        Choose a strong password for your account.
+                                    </p>
+
+                                    <Field label="Current Password">
+                                        <input
+                                            type="password"
+                                            value={currentPassword}
+                                            onChange={(e) => setCurrentPassword(e.target.value)}
+                                            placeholder="Enter current password"
+                                            autoComplete="current-password"
+                                            className={inputClass}
+                                        />
+                                    </Field>
+                                    <Field label="New Password">
+                                        <input
+                                            type="password"
+                                            value={newPassword}
+                                            onChange={(e) => setNewPassword(e.target.value)}
+                                            placeholder="At least 8 characters"
+                                            autoComplete="new-password"
+                                            className={inputClass}
+                                        />
+                                    </Field>
+
+                                    <button
+                                        type="submit"
+                                        className="rounded-xl border border-[#869CFF]/60 bg-white px-6 py-3.5 text-sm font-bold text-[#586FD6] transition hover:bg-[#869CFF]/10"
+                                    >
+                                        Update Password
+                                    </button>
+
+                                    <NoteBanner note={passwordNote} />
+
+                                    <p className="mt-6 text-sm text-gray-400">
+                                        Password changes require backend authentication before
+                                        they can update a real account.
+                                    </p>
+                                </form>
+                            </div>
                         </PageSection>
                     )}
+
+                    <footer className="mt-10 border-t border-[#ECECF5] py-6 text-center text-xs text-gray-400">
+                        © 2026 Codo Learn. Empowering employees.
+                    </footer>
                 </div>
             </main>
         </div>
@@ -1057,5 +1387,137 @@ function EmptyState({ text }: { text: string }) {
         <div className="rounded-xl bg-[#F8F8FC] p-6 text-center text-sm text-gray-500">
             {text}
         </div>
+    );
+}
+
+function Avatar({
+    name,
+    photoUrl,
+    className,
+}: {
+    name: string;
+    photoUrl: string | null;
+    className: string;
+}) {
+    if (photoUrl) {
+        return (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+                src={photoUrl}
+                alt={`${name} profile photo`}
+                className={`object-cover ${className}`}
+            />
+        );
+    }
+
+    return (
+        <div
+            className={`flex items-center justify-center bg-gradient-to-br from-[#869CFF] to-[#E2A3FF] font-bold text-white ${className}`}
+        >
+            {name.charAt(0).toUpperCase()}
+        </div>
+    );
+}
+
+function CameraIcon() {
+    return (
+        <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+        >
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+            <circle cx="12" cy="13" r="4" />
+        </svg>
+    );
+}
+
+function NoteBanner({ note }: { note: FormNote | null }) {
+    if (!note) return null;
+
+    return (
+        <p
+            role={note.type === "error" ? "alert" : "status"}
+            className={`mt-4 rounded-xl p-3 text-sm ${
+                note.type === "error"
+                    ? "bg-rose-50 text-rose-700"
+                    : "bg-emerald-50 text-emerald-700"
+            }`}
+        >
+            {note.text}
+        </p>
+    );
+}
+
+function PhaseChecklist({
+    phases,
+    onToggle,
+}: {
+    phases: Phase[];
+    onToggle: (phaseId: number, requirementId: number) => void;
+}) {
+    return (
+        <ol className="mt-4 space-y-3">
+            {phases.map((phase, index) => {
+                const done = phase.requirements.filter((r) => r.done).length;
+                const total = phase.requirements.length;
+                const complete = total > 0 && done === total;
+
+                return (
+                    <li
+                        key={phase.id}
+                        className="rounded-xl border border-[#ECECF5] p-4"
+                    >
+                        <div className="flex items-center justify-between gap-3">
+                            <p className="text-sm font-bold">
+                                {index + 1}. {phase.title}
+                            </p>
+                            <span
+                                className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                                    complete
+                                        ? "bg-emerald-50 text-emerald-700"
+                                        : "bg-gray-100 text-gray-500"
+                                }`}
+                            >
+                                {complete ? "✓ " : ""}
+                                {done}/{total}
+                            </span>
+                        </div>
+
+                        <ul className="mt-3 space-y-1">
+                            {phase.requirements.map((requirement) => (
+                                <li key={requirement.id}>
+                                    <label className="flex cursor-pointer items-center gap-3 rounded-lg px-2 py-2 text-sm hover:bg-[#F8F8FC]">
+                                        <input
+                                            type="checkbox"
+                                            checked={requirement.done}
+                                            onChange={() =>
+                                                onToggle(phase.id, requirement.id)
+                                            }
+                                            className="h-4 w-4 shrink-0 accent-emerald-500"
+                                        />
+                                        <span
+                                            className={
+                                                requirement.done
+                                                    ? "text-gray-400 line-through"
+                                                    : "text-[#20243A]"
+                                            }
+                                        >
+                                            {requirement.title}
+                                        </span>
+                                    </label>
+                                </li>
+                            ))}
+                        </ul>
+                    </li>
+                );
+            })}
+        </ol>
     );
 }

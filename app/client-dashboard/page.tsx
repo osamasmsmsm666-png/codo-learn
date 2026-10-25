@@ -1,11 +1,20 @@
 "use client";
 
-import { useState, type FormEvent, type ReactNode } from "react";
+import {
+    useEffect,
+    useRef,
+    useState,
+    type ChangeEvent,
+    type FormEvent,
+    type ReactNode,
+} from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion } from "motion/react";
 
 type Section = "overview" | "request" | "projects" | "payments" | "profile";
+
+type FormNote = { type: "success" | "error"; text: string };
 
 type ServiceType =
     | "Web Development"
@@ -28,12 +37,25 @@ type ServiceRequest = {
     status: RequestStatus;
 };
 
+type Requirement = {
+    id: number;
+    title: string;
+    done: boolean;
+};
+
+// A project is split into phases, and each phase into small requirements.
+type Phase = {
+    id: number;
+    title: string;
+    requirements: Requirement[];
+};
+
 type Project = {
     id: number;
     title: string;
     service: ServiceType;
     status: ProjectStatus;
-    progress: number;
+    phases: Phase[];
     deadline: string;
     manager: string;
 };
@@ -82,29 +104,114 @@ const initialProjects: Project[] = [
         title: "Company Website Redesign",
         service: "Web Development",
         status: "In Progress",
-        progress: 55,
         deadline: "2026-11-30",
         manager: "Ahmed Samir",
+        phases: [
+            {
+                id: 1,
+                title: "Design",
+                requirements: [
+                    { id: 1, title: "Wireframes", done: true },
+                    { id: 2, title: "UI mockups", done: true },
+                    { id: 3, title: "Client approval", done: true },
+                ],
+            },
+            {
+                id: 2,
+                title: "Development",
+                requirements: [
+                    { id: 4, title: "Homepage", done: true },
+                    { id: 5, title: "About & Services pages", done: true },
+                    { id: 6, title: "Contact form", done: false },
+                    { id: 7, title: "Blog section", done: false },
+                ],
+            },
+            {
+                id: 3,
+                title: "Launch",
+                requirements: [
+                    { id: 8, title: "Testing & fixes", done: false },
+                    { id: 9, title: "Deployment", done: false },
+                    { id: 10, title: "Team training", done: false },
+                ],
+            },
+        ],
     },
     {
         id: 2,
         title: "Brand Identity & UI Kit",
         service: "UI/UX Design",
         status: "Completed",
-        progress: 100,
         deadline: "2026-09-20",
         manager: "Mona Hassan",
+        phases: [
+            {
+                id: 1,
+                title: "Brand Identity",
+                requirements: [
+                    { id: 1, title: "Logo design", done: true },
+                    { id: 2, title: "Colors & typography", done: true },
+                    { id: 3, title: "Brand guidelines", done: true },
+                ],
+            },
+            {
+                id: 2,
+                title: "UI Kit",
+                requirements: [
+                    { id: 4, title: "Component library", done: true },
+                    { id: 5, title: "Design files handoff", done: true },
+                ],
+            },
+        ],
     },
     {
         id: 3,
         title: "Online Store Setup",
         service: "E-commerce",
         status: "Planning",
-        progress: 10,
         deadline: "2027-01-15",
         manager: "Omar Khaled",
+        phases: [
+            {
+                id: 1,
+                title: "Planning",
+                requirements: [
+                    { id: 1, title: "Requirements gathering", done: false },
+                    { id: 2, title: "Product catalog structure", done: false },
+                ],
+            },
+            {
+                id: 2,
+                title: "Store Setup",
+                requirements: [
+                    { id: 3, title: "Store configuration", done: false },
+                    { id: 4, title: "Payment methods", done: false },
+                    { id: 5, title: "Shipping options", done: false },
+                ],
+            },
+            {
+                id: 3,
+                title: "Launch",
+                requirements: [
+                    { id: 6, title: "Test orders", done: false },
+                    { id: 7, title: "Go live", done: false },
+                ],
+            },
+        ],
     },
 ];
+
+// Progress is never typed in by hand: it is the share of requirements that
+// are done, so it always matches the checkmarks.
+function countRequirements(project: Project) {
+    const all = project.phases.flatMap((phase) => phase.requirements);
+    return { done: all.filter((r) => r.done).length, total: all.length };
+}
+
+function progressOf(project: Project) {
+    const { done, total } = countRequirements(project);
+    return total === 0 ? 0 : Math.round((done / total) * 100);
+}
 
 const invoices: Invoice[] = [
     {
@@ -162,7 +269,7 @@ const pageTitles: Record<Section, string> = {
 };
 
 const inputClass =
-    "w-full rounded-xl border border-[#ECECF5] bg-white px-4 py-3 text-sm outline-none transition focus:border-[#869CFF] focus:ring-2 focus:ring-[#869CFF]/20";
+    "w-full rounded-xl border border-[#ECECF5] bg-white px-4 py-3.5 text-sm outline-none transition placeholder:text-gray-400 focus:border-[#869CFF] focus:ring-2 focus:ring-[#869CFF]/20";
 
 function formatMoney(amount: number) {
     return `EGP ${amount.toLocaleString("en-US")}`;
@@ -188,10 +295,24 @@ export default function ClientDashboard() {
 
     // Profile
     const [clientName, setClientName] = useState("Client Name");
-    const [company, setCompany] = useState("Company Name");
+    const [company, setCompany] = useState("");
     const [email, setEmail] = useState("client@example.com");
-    const [phone, setPhone] = useState("+20 100 000 0000");
-    const [address, setAddress] = useState("Cairo, Egypt");
+    const [phone, setPhone] = useState("");
+    const [address, setAddress] = useState("");
+    const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+    const photoInputRef = useRef<HTMLInputElement>(null);
+    const [profileNote, setProfileNote] = useState<FormNote | null>(null);
+
+    const [currentPassword, setCurrentPassword] = useState("");
+    const [newPassword, setNewPassword] = useState("");
+    const [passwordNote, setPasswordNote] = useState<FormNote | null>(null);
+
+    // Free the temporary photo preview when it is replaced or the page closes.
+    useEffect(() => {
+        return () => {
+            if (photoUrl) URL.revokeObjectURL(photoUrl);
+        };
+    }, [photoUrl]);
 
     const [message, setMessage] = useState("");
 
@@ -265,21 +386,98 @@ export default function ClientDashboard() {
         );
     }
 
+    function handlePhotoChange(event: ChangeEvent<HTMLInputElement>) {
+        const file = event.target.files?.[0];
+        event.target.value = ""; // lets the same file be picked again
+
+        if (!file) return;
+
+        if (!file.type.startsWith("image/")) {
+            setProfileNote({ type: "error", text: "Please choose an image file." });
+            return;
+        }
+
+        if (file.size > 2 * 1024 * 1024) {
+            setProfileNote({
+                type: "error",
+                text: "The image must be smaller than 2 MB.",
+            });
+            return;
+        }
+
+        setPhotoUrl(URL.createObjectURL(file));
+        setProfileNote({
+            type: "success",
+            text: "Photo selected. Backend storage is still needed to keep it after a refresh.",
+        });
+    }
+
     function saveProfile(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
+        setProfileNote(null);
 
         if (!clientName.trim()) {
-            setMessage("Please enter your name.");
+            setProfileNote({ type: "error", text: "Please enter your full name." });
             return;
         }
 
         const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailPattern.test(email.trim())) {
-            setMessage("Please enter a valid email address.");
+            setProfileNote({
+                type: "error",
+                text: "Please enter a valid email address.",
+            });
             return;
         }
 
-        setMessage("Profile saved in this demo. Backend integration is still needed.");
+        if (phone.trim() && !/^[+\d\s()-]{7,20}$/.test(phone.trim())) {
+            setProfileNote({
+                type: "error",
+                text: "Please enter a valid phone number.",
+            });
+            return;
+        }
+
+        setProfileNote({
+            type: "success",
+            text: "Profile saved in this demo. Backend integration is still needed.",
+        });
+    }
+
+    function updatePassword(event: FormEvent<HTMLFormElement>) {
+        event.preventDefault();
+        setPasswordNote(null);
+
+        if (!currentPassword) {
+            setPasswordNote({
+                type: "error",
+                text: "Please enter your current password.",
+            });
+            return;
+        }
+
+        if (newPassword.length < 8) {
+            setPasswordNote({
+                type: "error",
+                text: "The new password must contain at least 8 characters.",
+            });
+            return;
+        }
+
+        if (newPassword === currentPassword) {
+            setPasswordNote({
+                type: "error",
+                text: "The new password must be different from the current one.",
+            });
+            return;
+        }
+
+        setCurrentPassword("");
+        setNewPassword("");
+        setPasswordNote({
+            type: "success",
+            text: "Password form is valid. Backend authentication is needed to change a real password.",
+        });
     }
 
     return (
@@ -367,9 +565,11 @@ export default function ClientDashboard() {
                         onClick={() => openSection("profile")}
                         className="flex items-center gap-3 rounded-xl p-1.5 hover:bg-gray-50"
                     >
-                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#869CFF] to-[#E2A3FF] font-bold text-white">
-                            {clientName.charAt(0).toUpperCase()}
-                        </div>
+                        <Avatar
+                            name={clientName}
+                            photoUrl={photoUrl}
+                            className="h-10 w-10 rounded-xl"
+                        />
                         <div className="hidden text-left sm:block">
                             <p className="max-w-36 truncate text-sm font-semibold">
                                 {clientName}
@@ -454,10 +654,10 @@ export default function ClientDashboard() {
                                                             {project.title}
                                                         </span>
                                                         <span className="text-gray-500">
-                                                            {project.progress}%
+                                                            {progressOf(project)}%
                                                         </span>
                                                     </div>
-                                                    <ProgressBar value={project.progress} />
+                                                    <ProgressBar value={progressOf(project)} />
                                                 </li>
                                             ))}
                                     </ul>
@@ -604,7 +804,7 @@ export default function ClientDashboard() {
                             title="My Projects"
                             description="Track the status and progress of your projects."
                         >
-                            <div className="grid gap-5 xl:grid-cols-2">
+                            <div className="grid items-start gap-5 xl:grid-cols-2">
                                 {projects.map((project) => (
                                     <div
                                         key={project.id}
@@ -626,11 +826,30 @@ export default function ClientDashboard() {
                                             <div className="mb-2 flex justify-between text-sm">
                                                 <span className="font-semibold">Progress</span>
                                                 <span className="text-gray-500">
-                                                    {project.progress}%
+                                                    {progressOf(project)}%
                                                 </span>
                                             </div>
-                                            <ProgressBar value={project.progress} />
+                                            <ProgressBar value={progressOf(project)} />
                                         </div>
+
+                                        <details open className="group mt-5">
+                                            <summary className="flex cursor-pointer list-none items-center justify-between text-sm font-bold [&::-webkit-details-marker]:hidden">
+                                                <span>
+                                                    Requirements ·{" "}
+                                                    <span className="font-semibold text-gray-500">
+                                                        {countRequirements(project).done} of{" "}
+                                                        {countRequirements(project).total} completed
+                                                    </span>
+                                                </span>
+                                                <span
+                                                    aria-hidden="true"
+                                                    className="text-gray-400 transition group-open:rotate-180"
+                                                >
+                                                    ⌄
+                                                </span>
+                                            </summary>
+                                            <PhaseList phases={project.phases} />
+                                        </details>
 
                                         <div className="mt-5 grid grid-cols-2 gap-3">
                                             <div className="rounded-xl bg-[#F8F8FC] p-3">
@@ -742,60 +961,167 @@ export default function ClientDashboard() {
                     {activeSection === "profile" && (
                         <PageSection
                             title="My Profile"
-                            description="Update your client details."
+                            description="Manage your personal information and password."
                         >
-                            <form
-                                onSubmit={saveProfile}
-                                className="max-w-2xl rounded-2xl border border-[#ECECF5] bg-white p-6"
-                            >
-                                <Field label="Full name">
-                                    <input
-                                        value={clientName}
-                                        onChange={(e) => setClientName(e.target.value)}
-                                        className={inputClass}
-                                    />
-                                </Field>
-                                <Field label="Company">
-                                    <input
-                                        value={company}
-                                        onChange={(e) => setCompany(e.target.value)}
-                                        className={inputClass}
-                                    />
-                                </Field>
-                                <Field label="Email">
-                                    <input
-                                        type="email"
-                                        value={email}
-                                        onChange={(e) => setEmail(e.target.value)}
-                                        className={inputClass}
-                                    />
-                                </Field>
-                                <Field label="Phone">
-                                    <input
-                                        value={phone}
-                                        onChange={(e) => setPhone(e.target.value)}
-                                        className={inputClass}
-                                    />
-                                </Field>
-                                <Field label="Address">
-                                    <input
-                                        value={address}
-                                        onChange={(e) => setAddress(e.target.value)}
-                                        className={inputClass}
-                                    />
-                                </Field>
-
-                                <button
-                                    type="submit"
-                                    className="rounded-xl bg-gradient-to-r from-[#869CFF] to-[#E2A3FF] px-6 py-3 text-sm font-bold text-white"
+                            <div className="grid items-start gap-6 lg:grid-cols-2">
+                                {/* Personal information */}
+                                <form
+                                    onSubmit={saveProfile}
+                                    noValidate
+                                    className="rounded-3xl border border-[#ECECF5] bg-white p-6 sm:p-8"
                                 >
-                                    Save Changes
-                                </button>
+                                    <div className="mb-7 flex items-center gap-5">
+                                        <div className="relative shrink-0">
+                                            <Avatar
+                                                name={clientName}
+                                                photoUrl={photoUrl}
+                                                className="h-[68px] w-[68px] rounded-2xl text-3xl"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => photoInputRef.current?.click()}
+                                                aria-label="Upload photo"
+                                                className="absolute -bottom-2 -right-2 flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-[#586FD6] text-white shadow-md hover:bg-[#455BC1]"
+                                            >
+                                                <CameraIcon />
+                                            </button>
+                                        </div>
 
-                                {message && <Message>{message}</Message>}
-                            </form>
+                                        <div>
+                                            <h3 className="text-xl font-extrabold">
+                                                Personal Information
+                                            </h3>
+                                            <p className="mt-1 text-sm text-gray-500">
+                                                Update your profile details and photo.
+                                            </p>
+                                            <button
+                                                type="button"
+                                                onClick={() => photoInputRef.current?.click()}
+                                                className="mt-2 text-sm font-bold text-[#586FD6] hover:text-[#455BC1]"
+                                            >
+                                                Upload Photo
+                                            </button>
+                                            <input
+                                                ref={photoInputRef}
+                                                type="file"
+                                                accept="image/*"
+                                                onChange={handlePhotoChange}
+                                                className="hidden"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <Field label="Full Name">
+                                        <input
+                                            value={clientName}
+                                            onChange={(e) => setClientName(e.target.value)}
+                                            placeholder="Enter your full name"
+                                            autoComplete="name"
+                                            className={inputClass}
+                                        />
+                                    </Field>
+                                    <Field label="Company">
+                                        <input
+                                            value={company}
+                                            onChange={(e) => setCompany(e.target.value)}
+                                            placeholder="Enter your company name"
+                                            autoComplete="organization"
+                                            className={inputClass}
+                                        />
+                                    </Field>
+                                    <Field label="Email Address">
+                                        <input
+                                            type="email"
+                                            value={email}
+                                            onChange={(e) => setEmail(e.target.value)}
+                                            placeholder="Enter your email address"
+                                            autoComplete="email"
+                                            className={inputClass}
+                                        />
+                                    </Field>
+                                    <Field label="Phone Number">
+                                        <input
+                                            type="tel"
+                                            value={phone}
+                                            onChange={(e) => setPhone(e.target.value)}
+                                            placeholder="Enter your phone number"
+                                            autoComplete="tel"
+                                            className={inputClass}
+                                        />
+                                    </Field>
+                                    <Field label="Address">
+                                        <input
+                                            value={address}
+                                            onChange={(e) => setAddress(e.target.value)}
+                                            placeholder="Enter your address"
+                                            autoComplete="street-address"
+                                            className={inputClass}
+                                        />
+                                    </Field>
+
+                                    <button
+                                        type="submit"
+                                        className="rounded-xl bg-[#586FD6] px-6 py-3.5 text-sm font-bold text-white transition hover:bg-[#455BC1]"
+                                    >
+                                        Save Changes
+                                    </button>
+
+                                    <NoteBanner note={profileNote} />
+                                </form>
+
+                                {/* Change password */}
+                                <form
+                                    onSubmit={updatePassword}
+                                    noValidate
+                                    className="rounded-3xl border border-[#ECECF5] bg-white p-6 sm:p-8"
+                                >
+                                    <h3 className="text-xl font-extrabold">Change Password</h3>
+                                    <p className="mb-7 mt-1 text-sm text-gray-500">
+                                        Choose a strong password for your account.
+                                    </p>
+
+                                    <Field label="Current Password">
+                                        <input
+                                            type="password"
+                                            value={currentPassword}
+                                            onChange={(e) => setCurrentPassword(e.target.value)}
+                                            placeholder="Enter current password"
+                                            autoComplete="current-password"
+                                            className={inputClass}
+                                        />
+                                    </Field>
+                                    <Field label="New Password">
+                                        <input
+                                            type="password"
+                                            value={newPassword}
+                                            onChange={(e) => setNewPassword(e.target.value)}
+                                            placeholder="At least 8 characters"
+                                            autoComplete="new-password"
+                                            className={inputClass}
+                                        />
+                                    </Field>
+
+                                    <button
+                                        type="submit"
+                                        className="rounded-xl border border-[#869CFF]/60 bg-white px-6 py-3.5 text-sm font-bold text-[#586FD6] transition hover:bg-[#869CFF]/10"
+                                    >
+                                        Update Password
+                                    </button>
+
+                                    <NoteBanner note={passwordNote} />
+
+                                    <p className="mt-6 text-sm text-gray-400">
+                                        Password changes require backend authentication before
+                                        they can update a real account.
+                                    </p>
+                                </form>
+                            </div>
                         </PageSection>
                     )}
+
+                    <footer className="mt-10 border-t border-[#ECECF5] py-6 text-center text-xs text-gray-400">
+                        © 2026 Codo Learn. Empowering clients.
+                    </footer>
                 </div>
             </main>
         </div>
@@ -928,5 +1254,148 @@ function EmptyState({ text }: { text: string }) {
         <div className="rounded-xl bg-[#F8F8FC] p-6 text-center text-sm text-gray-500">
             {text}
         </div>
+    );
+}
+
+function Avatar({
+    name,
+    photoUrl,
+    className,
+}: {
+    name: string;
+    photoUrl: string | null;
+    className: string;
+}) {
+    if (photoUrl) {
+        return (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+                src={photoUrl}
+                alt={`${name} profile photo`}
+                className={`object-cover ${className}`}
+            />
+        );
+    }
+
+    return (
+        <div
+            className={`flex items-center justify-center bg-gradient-to-br from-[#869CFF] to-[#E2A3FF] font-bold text-white ${className}`}
+        >
+            {name.charAt(0).toUpperCase()}
+        </div>
+    );
+}
+
+function CameraIcon() {
+    return (
+        <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+        >
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+            <circle cx="12" cy="13" r="4" />
+        </svg>
+    );
+}
+
+function NoteBanner({ note }: { note: FormNote | null }) {
+    if (!note) return null;
+
+    return (
+        <p
+            role={note.type === "error" ? "alert" : "status"}
+            className={`mt-4 rounded-xl p-3 text-sm ${
+                note.type === "error"
+                    ? "bg-rose-50 text-rose-700"
+                    : "bg-emerald-50 text-emerald-700"
+            }`}
+        >
+            {note.text}
+        </p>
+    );
+}
+
+function CheckCircle({
+    checked,
+    small = false,
+}: {
+    checked: boolean;
+    small?: boolean;
+}) {
+    const size = small ? "h-5 w-5 text-[11px]" : "h-6 w-6 text-xs";
+
+    return (
+        <span
+            className={`flex shrink-0 items-center justify-center rounded-full border-2 font-bold ${size} ${
+                checked
+                    ? "border-emerald-500 bg-emerald-500 text-white"
+                    : "border-gray-300 bg-white text-transparent"
+            }`}
+        >
+            <span aria-hidden="true">✓</span>
+            <span className="sr-only">{checked ? "Completed" : "Not completed"}</span>
+        </span>
+    );
+}
+
+function PhaseList({ phases }: { phases: Phase[] }) {
+    return (
+        <ol className="mt-4 space-y-3">
+            {phases.map((phase, index) => {
+                const done = phase.requirements.filter((r) => r.done).length;
+                const total = phase.requirements.length;
+                const complete = total > 0 && done === total;
+
+                return (
+                    <li
+                        key={phase.id}
+                        className="rounded-xl border border-[#ECECF5] p-4"
+                    >
+                        <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-3">
+                                <CheckCircle checked={complete} />
+                                <p className="text-sm font-bold">
+                                    {index + 1}. {phase.title}
+                                </p>
+                            </div>
+                            <span
+                                className={`text-xs font-semibold ${
+                                    complete ? "text-emerald-600" : "text-gray-400"
+                                }`}
+                            >
+                                {done}/{total}
+                            </span>
+                        </div>
+
+                        <ul className="ml-3 mt-3 space-y-2 border-l-2 border-[#ECECF5] pl-4">
+                            {phase.requirements.map((requirement) => (
+                                <li
+                                    key={requirement.id}
+                                    className="flex items-center gap-3 text-sm"
+                                >
+                                    <CheckCircle checked={requirement.done} small />
+                                    <span
+                                        className={
+                                            requirement.done
+                                                ? "text-gray-500"
+                                                : "text-[#20243A]"
+                                        }
+                                    >
+                                        {requirement.title}
+                                    </span>
+                                </li>
+                            ))}
+                        </ul>
+                    </li>
+                );
+            })}
+        </ol>
     );
 }
