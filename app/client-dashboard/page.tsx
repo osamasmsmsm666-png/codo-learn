@@ -282,6 +282,17 @@ export default function ClientDashboard() {
     const [requests, setRequests] = useState(initialRequests);
     const [projects] = useState(initialProjects);
 
+    // Which project cards have their requirements list open.
+    const [expandedProjects, setExpandedProjects] = useState<number[]>([]);
+
+    function toggleExpanded(id: number) {
+        setExpandedProjects((previous) =>
+            previous.includes(id)
+                ? previous.filter((item) => item !== id)
+                : [...previous, id]
+        );
+    }
+
     // Request form
     const [service, setService] = useState<ServiceType>("Web Development");
     const [requestTitle, setRequestTitle] = useState("");
@@ -804,71 +815,89 @@ export default function ClientDashboard() {
                             title="My Projects"
                             description="Track the status and progress of your projects."
                         >
-                            <div className="grid items-start gap-5 xl:grid-cols-2">
-                                {projects.map((project) => (
-                                    <div
-                                        key={project.id}
-                                        className="rounded-2xl border border-[#ECECF5] bg-white p-6"
-                                    >
-                                        <div className="flex items-start justify-between gap-3">
-                                            <div>
-                                                <span className="rounded-lg bg-[#869CFF]/10 px-3 py-1.5 text-xs font-semibold text-[#586FD6]">
+                            <div className="grid items-start gap-5 sm:grid-cols-2 xl:grid-cols-3">
+                                {projects.map((project) => {
+                                    const { done, total } = countRequirements(project);
+                                    const expanded = expandedProjects.includes(project.id);
+                                    const panelId = `project-${project.id}-requirements`;
+
+                                    return (
+                                        <div
+                                            key={project.id}
+                                            className="flex flex-col rounded-2xl border border-[#ECECF5] bg-white p-5"
+                                        >
+                                            <div className="flex items-center justify-between gap-3">
+                                                <span className="truncate rounded-lg bg-[#869CFF]/10 px-3 py-1.5 text-xs font-semibold text-[#586FD6]">
                                                     {project.service}
                                                 </span>
-                                                <h3 className="mt-4 text-lg font-bold">
-                                                    {project.title}
-                                                </h3>
+                                                <Badge label={project.status} />
                                             </div>
-                                            <Badge label={project.status} />
-                                        </div>
 
-                                        <div className="mt-5">
-                                            <div className="mb-2 flex justify-between text-sm">
-                                                <span className="font-semibold">Progress</span>
-                                                <span className="text-gray-500">
-                                                    {progressOf(project)}%
-                                                </span>
-                                            </div>
-                                            <ProgressBar value={progressOf(project)} />
-                                        </div>
+                                            <h3 className="mt-4 line-clamp-2 min-h-14 text-lg font-bold leading-7">
+                                                {project.title}
+                                            </h3>
 
-                                        <details open className="group mt-5">
-                                            <summary className="flex cursor-pointer list-none items-center justify-between text-sm font-bold [&::-webkit-details-marker]:hidden">
-                                                <span>
-                                                    Requirements ·{" "}
-                                                    <span className="font-semibold text-gray-500">
-                                                        {countRequirements(project).done} of{" "}
-                                                        {countRequirements(project).total} completed
+                                            <div className="mt-4">
+                                                <div className="mb-2 flex justify-between text-sm">
+                                                    <span className="font-semibold">Progress</span>
+                                                    <span className="text-gray-500">
+                                                        {progressOf(project)}%
                                                     </span>
-                                                </span>
-                                                <span
-                                                    aria-hidden="true"
-                                                    className="text-gray-400 transition group-open:rotate-180"
-                                                >
-                                                    ⌄
-                                                </span>
-                                            </summary>
-                                            <PhaseList phases={project.phases} />
-                                        </details>
+                                                </div>
+                                                <ProgressBar value={progressOf(project)} />
+                                            </div>
 
-                                        <div className="mt-5 grid grid-cols-2 gap-3">
-                                            <div className="rounded-xl bg-[#F8F8FC] p-3">
-                                                <p className="text-xs text-gray-500">Deadline</p>
-                                                <p className="mt-1 text-sm font-bold">
-                                                    {project.deadline}
-                                                </p>
+                                            <div className="mt-4 grid grid-cols-2 gap-3">
+                                                <div className="min-w-0 rounded-xl bg-[#F8F8FC] p-3">
+                                                    <p className="text-xs text-gray-500">Deadline</p>
+                                                    <p className="mt-1 truncate text-sm font-bold">
+                                                        {project.deadline}
+                                                    </p>
+                                                </div>
+                                                <div className="min-w-0 rounded-xl bg-[#F8F8FC] p-3">
+                                                    <p className="text-xs text-gray-500">Manager</p>
+                                                    <p className="mt-1 truncate text-sm font-bold">
+                                                        {project.manager}
+                                                    </p>
+                                                </div>
                                             </div>
-                                            <div className="rounded-xl bg-[#F8F8FC] p-3">
-                                                <p className="text-xs text-gray-500">
-                                                    Project manager
-                                                </p>
-                                                <p className="mt-1 text-sm font-bold">
-                                                    {project.manager}
-                                                </p>
+
+                                            <div className="mt-auto pt-5">
+                                                <button
+                                                    onClick={() => toggleExpanded(project.id)}
+                                                    aria-expanded={expanded}
+                                                    aria-controls={panelId}
+                                                    className="flex w-full items-center justify-between rounded-xl bg-[#869CFF]/15 px-4 py-3 text-sm font-bold text-[#586FD6] transition hover:bg-[#869CFF]/25"
+                                                >
+                                                    <span>
+                                                        {expanded
+                                                            ? "Hide requirements"
+                                                            : "View requirements"}
+                                                    </span>
+                                                    <span className="flex items-center gap-2">
+                                                        <span className="font-semibold opacity-70">
+                                                            {done}/{total}
+                                                        </span>
+                                                        <span
+                                                            aria-hidden="true"
+                                                            className={`transition ${
+                                                                expanded ? "rotate-180" : ""
+                                                            }`}
+                                                        >
+                                                            ⌄
+                                                        </span>
+                                                    </span>
+                                                </button>
                                             </div>
+
+                                            {expanded && (
+                                                <div id={panelId}>
+                                                    <PhaseList phases={project.phases} />
+                                                </div>
+                                            )}
                                         </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </PageSection>
                     )}
